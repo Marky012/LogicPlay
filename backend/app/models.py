@@ -26,3 +26,24 @@ class Circuit(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
 
     owner = relationship("User", back_populates="circuits")
+
+class Badge(Base):
+    __tablename__ = "badges"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String, unique=True, index=True)
+    description = Column(String)
+    requirement_type = Column(String)
+    requirement_value = Column(Integer)
+
+class Challenge(Base):
+    __tablename__ = "challenges"
+
+    id = Column(Integer, primary_key=True, index=True)
+    title = Column(String)
+    description = Column(String)
+    target_gate = Column(String, nullable=True)
+    gate_count = Column(Integer, nullable=True)
+    points_reward = Column(Integer, default=50)
+    created_at = Column(DateTime, default=datetime.utcnow)
+

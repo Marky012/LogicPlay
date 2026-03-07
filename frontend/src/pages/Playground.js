@@ -4,8 +4,10 @@ import { HTML5Backend } from 'react-dnd-html5-backend';
 import { AuthContext } from '../context/AuthContext';
 import Canvas from '../components/Canvas';
 import Toolbar from '../components/Toolbar';
+import Gamification from '../components/Gamification';
+import ChallengeList from '../components/ChallengeList';
 import { validateCircuitConnections, evaluateCircuit } from '../utils/circuitLogic';
-import { saveCircuit } from '../utils/api';
+import { saveCircuit, getUser } from '../utils/api';
 
 const Playground = () => {
   const { user, logout } = useContext(AuthContext);
@@ -16,6 +18,25 @@ const Playground = () => {
   const [feedback, setFeedback] = useState('');
   const [isPlaying, setIsPlaying] = useState(false);
   const evalIntervalRef = useRef(null);
+  
+  const [profileData, setProfileData] = useState({ points: 0, level: 1, badges: [] });
+
+  // Fetch updated profile stats to show in Gamification header
+  const fetchProfile = async () => {
+     if (user?.username) {
+         try {
+            const data = await getUser(user.username);
+            setProfileData(data);
+         } catch (e) {
+            console.error(e);
+         }
+     }
+  };
+
+  useEffect(() => {
+      fetchProfile();
+      return () => clearInterval(evalIntervalRef.current);
+  }, [user]);
 
   const startSimulation = () => {
     setIsPlaying(true);
@@ -74,9 +95,11 @@ const Playground = () => {
             score: evaluateCircuit(gates, wires).score,
             feedback: "Saved"
          };
-         // Mock user_id as 1, assuming first registered user for now without JWT payload details
-         await saveCircuit(circuitData, 1);
-         setFeedback('Circuit saved successfully!');
+         // Use the fetched profile data id or default to user payload if we had one
+         await saveCircuit(circuitData, profileData.id || 1);
+         setFeedback('Circuit saved successfully! Points/Badges updated.');
+         // Refresh profile to show new points/badges
+         fetchProfile();
       } catch (e) {
          setFeedback('Failed to save circuit. ' + (e.message || ''));
       }
@@ -98,8 +121,11 @@ const Playground = () => {
   return (
     <DndProvider backend={HTML5Backend}>
       <div className="flex flex-col min-h-screen">
-        <header className="bg-surface p-4 flex justify-between items-center shadow-md z-10">
-          <h1 className="text-2xl font-bold text-primary">LogicPlay</h1>
+        <header className="bg-surface p-4 flex justify-between items-center shadow-md z-10 border-b border-gray-700">
+          <div className="flex items-center gap-6">
+            <h1 className="text-2xl font-bold text-primary">LogicPlay</h1>
+            <Gamification points={profileData.points || 0} level={profileData.level || 1} badges={profileData.badges || []} />
+          </div>
           <div className="flex items-center gap-4">
             <span className="text-gray-300">Welcome, <span className="font-semibold text-white">{user.username}</span></span>
             <button onClick={logout} className="btn-secondary text-sm">Logout</button>
@@ -108,6 +134,9 @@ const Playground = () => {
         
         <main className="flex-1 flex flex-col md:flex-row p-4 gap-4 bg-background">
           <Toolbar />
+          <div className="flex flex-col gap-2">
+              <ChallengeList onSelectChallenge={(c) => setFeedback(`Challenge Selected: ${c.title}. Start building!`)} />
+          </div>
           
           <Canvas 
             gates={gates} 

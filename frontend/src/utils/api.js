@@ -32,4 +32,9 @@ export const gradeCircuit = async (circuitData) => {
   return response.data;
 };
 
+export const getChallenges = async () => {
+  const response = await api.get('/challenges/');
+  return response.data;
+};
+
 export default api;

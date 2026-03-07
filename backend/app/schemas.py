@@ -36,3 +36,23 @@ class User(UserBase):
     class Config:
         orm_mode = True
         from_attributes = True
+
+class Badge(BaseModel):
+    id: int
+    name: str
+    description: Optional[str] = None
+    
+    class Config:
+        orm_mode = True
+        from_attributes = True
+
+class Challenge(BaseModel):
+    id: int
+    title: str
+    description: Optional[str] = None
+    points_reward: int
+    
+    class Config:
+        orm_mode = True
+        from_attributes = True
+
