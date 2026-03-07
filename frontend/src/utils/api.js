@@ -17,9 +17,24 @@ export const getUser = async (username) => {
   return response.data;
 };
 
+import { saveCircuitOffline } from './offlineSync';
+
 export const saveCircuit = async (circuitData, userId) => {
-  const response = await api.post(`/circuits/?user_id=${userId}`, circuitData);
-  return response.data;
+  if (!navigator.onLine) {
+     await saveCircuitOffline(circuitData);
+     return { ...circuitData, message: "Saved offline. Will sync when connected." };
+  }
+  
+  try {
+     const response = await api.post(`/circuits/?user_id=${userId}`, circuitData);
+     return response.data;
+  } catch (error) {
+     if (error.message === 'Network Error') {
+        await saveCircuitOffline(circuitData);
+        return { ...circuitData, message: "Network error. Saved offline. Will sync when connected." };
+     }
+     throw error;
+  }
 };
 
 export const getCircuits = async (username) => {
