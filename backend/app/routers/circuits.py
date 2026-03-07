@@ -4,6 +4,7 @@ from typing import List, Dict, Any
 
 from .. import crud, models, schemas
 from ..database import get_db
+from ...ml_model.predict import predict_score
 
 router = APIRouter(
     prefix="/circuits",
@@ -23,5 +24,10 @@ def read_circuit(circuit_id: int, db: Session = Depends(get_db)):
 
 @router.post("/grade")
 def grade_circuit(circuit_data: Dict[str, Any]):
-    # Placeholder for ML grading logic
-    return {"score": 0, "feedback": "Placeholder for ML backend"}
+    try:
+        # Extract circuit structure (React frontend sends nested circuit_data)
+        data = circuit_data.get('circuit_data', circuit_data)
+        result = predict_score(data)
+        return result
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
