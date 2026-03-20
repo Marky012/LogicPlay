@@ -4,7 +4,7 @@ from typing import List, Dict, Any
 
 from .. import crud, models, schemas
 from ..database import get_db
-from ...ml_model.predict import predict_score
+from ml_model.predict import predict_score
 from ..services.gamification import calculate_level, check_badges
 
 router = APIRouter(

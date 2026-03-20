@@ -18,10 +18,14 @@
     "workbox-webpack-plugin": "^7.4.0"
   },
   "devDependencies": {
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.2",
     "@vue/compiler-sfc": "^3.0.4",
     "autoprefixer": "^10.4.27",
+    "jsdom": "^28.1.0",
     "postcss": "^8.5.8",
     "tailwindcss": "^4.2.1",
-    "vite": "^1.0.0-rc.13"
+    "vite": "^1.0.0-rc.13",
+    "vitest": "^4.0.18"
   }
 }
