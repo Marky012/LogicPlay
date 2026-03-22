@@ -6,7 +6,7 @@ def extract_features(circuit_data):
     gates = circuit_data.get('gates', [])
     wires = circuit_data.get('wires', [])
     
-    gate_count = len(gates)
+    gate_count = sum(1 for g in gates if g.get('type') not in ['INPUT', 'OUTPUT'])
     wire_count = len(wires)
     
     and_count = sum(1 for g in gates if g['type'] == 'AND')

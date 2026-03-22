@@ -1,14 +1,21 @@
 import React, { useContext } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { AuthProvider, AuthContext } from './context/AuthContext';
-import Home from './pages/Home';
-import Playground from './pages/Playground';
-import Profile from './pages/Profile';
-import OfflineBanner from './components/OfflineBanner';
+import { AuthProvider, AuthContext } from './context/AuthContext.jsx';
+import { ToastProvider } from './components/ToastNotification.jsx';
+import Home from './pages/Home.jsx';
+import Playground from './pages/Playground.jsx';
+import Profile from './pages/Profile.jsx';
+import OfflineBanner from './components/OfflineBanner.jsx';
 
 const ProtectedRoute = ({ children }) => {
   const { user, loading } = useContext(AuthContext);
-  if (loading) return <div>Loading...</div>;
+  if (loading) return (
+    <div className="flex items-center justify-center min-h-screen" style={{ background: 'var(--c-bg)' }}>
+      <svg className="animate-spin w-8 h-8" viewBox="0 0 24 24" fill="none">
+        <circle cx="12" cy="12" r="10" stroke="var(--neon-blue)" strokeWidth="3" strokeDasharray="30" strokeDashoffset="10" />
+      </svg>
+    </div>
+  );
   if (!user) return <Navigate to="/" replace />;
   return children;
 };
@@ -20,15 +27,12 @@ function AppRoutes() {
   React.useEffect(() => {
     const handleOnline = () => setIsOffline(false);
     const handleOffline = () => setIsOffline(true);
-    
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
-
     window.addEventListener('beforeinstallprompt', (e) => {
       e.preventDefault();
       setInstallPrompt(e);
     });
-    
     return () => {
       window.removeEventListener('online', handleOnline);
       window.removeEventListener('offline', handleOffline);
@@ -38,44 +42,40 @@ function AppRoutes() {
   const handleInstallClick = () => {
     if (installPrompt) {
       installPrompt.prompt();
-      installPrompt.userChoice.then((choiceResult) => {
-        if (choiceResult.outcome === 'accepted') {
-          console.log('User accepted the install prompt');
-        }
-        setInstallPrompt(null);
-      });
+      installPrompt.userChoice.then(() => setInstallPrompt(null));
     }
   };
 
   return (
     <>
       <OfflineBanner isOffline={isOffline} />
+
+      {/* PWA install prompt */}
       {installPrompt && (
-          <div className="fixed bottom-4 right-4 bg-surface p-4 rounded-lg shadow-2xl border border-gray-700 z-50 flex flex-col gap-2">
-             <p className="font-bold">Install LogicPlay App</p>
-             <p className="text-sm text-gray-400">Install for a better offline experience.</p>
-             <button onClick={handleInstallClick} className="btn-primary py-1 mt-2">Install</button>
-             <button onClick={() => setInstallPrompt(null)} className="text-gray-500 text-xs mt-1 hover:text-white">Dismiss</button>
+        <div className="fixed bottom-6 left-6 z-[9990] animate-slide-up glass-panel p-4 flex flex-col gap-2 max-w-[240px]"
+          style={{ border: '1px solid rgba(0,212,255,0.3)', boxShadow: '0 0 24px rgba(0,212,255,0.15)' }}>
+          <div className="flex items-center gap-2">
+            <span className="text-xl">⚡</span>
+            <div>
+              <p className="text-sm font-bold text-white leading-none">Install LogicPlay</p>
+              <p className="text-[10px] text-slate-500 mt-0.5">Better offline experience</p>
+            </div>
           </div>
+          <div className="flex gap-2 mt-1">
+            <button onClick={handleInstallClick} className="btn-primary flex-1 py-1.5 text-xs">Install</button>
+            <button onClick={() => setInstallPrompt(null)} className="btn-ghost flex-1 py-1.5 text-xs">Dismiss</button>
+          </div>
+        </div>
       )}
+
       <Routes>
         <Route path="/" element={<Home />} />
-        <Route 
-          path="/playground" 
-          element={
-            <ProtectedRoute>
-              <Playground />
-            </ProtectedRoute>
-          } 
-        />
-        <Route 
-          path="/profile" 
-          element={
-            <ProtectedRoute>
-              <Profile />
-            </ProtectedRoute>
-          } 
-        />
+        <Route path="/playground" element={
+          <ProtectedRoute><Playground /></ProtectedRoute>
+        } />
+        <Route path="/profile" element={
+          <ProtectedRoute><Profile /></ProtectedRoute>
+        } />
       </Routes>
     </>
   );
@@ -84,9 +84,11 @@ function AppRoutes() {
 function App() {
   return (
     <AuthProvider>
-      <BrowserRouter>
-        <AppRoutes />
-      </BrowserRouter>
+      <ToastProvider>
+        <BrowserRouter>
+          <AppRoutes />
+        </BrowserRouter>
+      </ToastProvider>
     </AuthProvider>
   );
 }

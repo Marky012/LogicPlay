@@ -1,31 +1,31 @@
 {
-  "name": "frontend",
-  "version": "0.0.0",
+  "name": "logicplay-frontend",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build"
+    "build": "vite build",
+    "preview": "vite preview"
   },
   "dependencies": {
-    "axios": "^1.13.6",
-    "idb": "^8.0.3",
-    "p5": "^2.2.2",
+    "axios": "^1.7.7",
+    "idb": "^8.0.0",
+    "p5": "^1.10.0",
+    "react": "^18.3.1",
     "react-achievements": "^3.9.3",
     "react-dnd": "^16.0.1",
     "react-dnd-html5-backend": "^16.0.1",
-    "react-router-dom": "^7.13.1",
-    "vite-plugin-pwa": "^1.2.0",
-    "vue": "^3.0.4",
-    "workbox-webpack-plugin": "^7.4.0"
+    "react-dom": "^18.3.1",
+    "react-router-dom": "^6.26.2"
   },
   "devDependencies": {
-    "@testing-library/jest-dom": "^6.9.1",
-    "@testing-library/react": "^16.3.2",
-    "@vue/compiler-sfc": "^3.0.4",
+    "@vitejs/plugin-react": "^4.3.1",
     "autoprefixer": "^10.4.27",
-    "jsdom": "^28.1.0",
     "postcss": "^8.5.8",
-    "tailwindcss": "^4.2.1",
-    "vite": "^1.0.0-rc.13",
-    "vitest": "^4.0.18"
+    "tailwindcss": "^3.4.19",
+    "vite": "^7.3.1",
+    "vite-plugin-pwa": "^1.2.0",
+    "workbox-window": "^7.1.0"
   }
 }
