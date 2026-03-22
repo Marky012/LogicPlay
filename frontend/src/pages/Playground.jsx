@@ -1,4 +1,5 @@
 import React, { useState, useContext, useEffect, useRef } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { DndProvider } from 'react-dnd';
 import { HTML5Backend } from 'react-dnd-html5-backend';
 import { AuthContext } from '../context/AuthContext';
@@ -71,12 +72,18 @@ const StatChip = ({ label, value, color }) => (
 /* ── Right Sidebar Tabs ── */
 const TABS = ['Controls', 'Truth Table', 'Circuit'];
 
+const getCircuitHash = (g, w) => {
+  const cleanGates = g.map(({ id, type, x, y }) => ({ id, type, x, y }));
+  return JSON.stringify({ gates: cleanGates, wires: w });
+};
+
 const Playground = () => {
   const { user }   = useContext(AuthContext);
   const location   = useLocation();
   const navigate   = useNavigate();
   const addToast   = useToast();
   const evalRef    = useRef(null);
+  const lastSavedCircuitRef = useRef(null);
 
   const [gates, setGates]                     = useState([]);
   const [wires, setWires]                     = useState([]);
@@ -124,6 +131,7 @@ const Playground = () => {
         let title = c.circuit_data.name || `Circuit #${c.id}`;
         setSelectedChallenge({ title, id: 'custom_loaded' });
         setViewMode(true);
+        lastSavedCircuitRef.current = getCircuitHash(c.circuit_data.gates, c.circuit_data.wires);
         
         addToast('success', `Loaded ${title} in View Mode`);
 
@@ -203,6 +211,12 @@ const Playground = () => {
       return;
     }
     
+    const currentHash = getCircuitHash(gates, wires);
+    if (lastSavedCircuitRef.current === currentHash) {
+      addToast('info', 'This exact circuit is already saved!');
+      return;
+    }
+
     try {
       const circuitData = {
         circuit_data: { gates, wires, name: selectedChallenge?.title || 'My Circuit' },
@@ -210,6 +224,7 @@ const Playground = () => {
         feedback: 'Saved',
       };
       await saveCircuit(circuitData, profileData.id || 1);
+      lastSavedCircuitRef.current = currentHash;
       addToast('success', 'Circuit saved! XP updated.');
       fetchProfile();
       setHasUnsavedChanges(false);
@@ -223,6 +238,7 @@ const Playground = () => {
     setComputedGateValues(null); setFeedback('');
     if (isPlaying) stopSimulation();
     setResetViewTrigger(prev => prev + 1);
+    lastSavedCircuitRef.current = null;
     addToast('info', 'Canvas cleared.');
   };
 
@@ -299,10 +315,10 @@ const Playground = () => {
                 <SimButton isPlaying={isPlaying} onClick={isPlaying ? stopSimulation : startSimulation} />
                 
                 <button 
-                  onClick={() => { setViewMode(false); clearCanvas(); setSelectedChallenge(null); }} 
-                  className="btn-danger w-full py-2.5 text-xs font-bold uppercase tracking-widest mt-auto"
+                  onClick={() => { setViewMode(false); setSelectedChallenge(null); }} 
+                  className="btn-primary w-full py-2.5 text-xs font-bold uppercase tracking-widest mt-auto shadow-glow-blue"
                 >
-                  Close & Clear
+                  Close View Mode
                 </button>
               </div>
             ) : (

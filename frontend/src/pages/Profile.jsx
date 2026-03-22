@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useContext } from 'react';
 import { AuthContext } from '../context/AuthContext';
 import { getUser, getCircuits } from '../utils/api';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import NavBar from '../components/NavBar';
 
 const RANKS = [
@@ -28,7 +28,6 @@ const StatCard = ({ label, value, color, icon }) => (
   </div>
 );
 
-import { useNavigate } from 'react-router-dom';
 
 const Profile = () => {
   const { user }       = useContext(AuthContext);

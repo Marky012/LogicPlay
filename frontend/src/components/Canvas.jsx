@@ -37,7 +37,7 @@ const pinCenter = (gate, pinId) => {
   return { x: gate.x - PIN_OFFSET + PIN_R, y: cy };
 };
 
-const Canvas = ({ gates, setGates, wires, setWires, onGateStateToggle, activeWires, computedGateValues, resetViewTrigger }) => {
+const Canvas = ({ gates, setGates, wires, setWires, onGateStateToggle, activeWires, computedGateValues, resetViewTrigger, isReadOnly }) => {
   const canvasRef      = useRef(null);
   const p5ContainerRef = useRef(null);
   const sketchRef      = useRef(null);
@@ -162,7 +162,8 @@ const Canvas = ({ gates, setGates, wires, setWires, onGateStateToggle, activeWir
   }, [scale, pan]);
 
   const handleMouseDown = (e) => {
-    if (e.target === canvasRef.current) {
+    const isInteractive = e.target.closest('button') || e.target.closest('.input-toggle');
+    if (e.target === canvasRef.current || (isReadOnly && !isInteractive)) {
       setIsPanning(true);
       panStartRef.current = { x: e.clientX - pan.x, y: e.clientY - pan.y };
     }
@@ -208,6 +209,7 @@ const Canvas = ({ gates, setGates, wires, setWires, onGateStateToggle, activeWir
   /* ── Drop zone ── */
   const [, dropRef] = useDrop(() => ({
     accept: ['NEW_GATE', 'GATE'],
+    canDrop: () => !isReadOnly,
     drop: (item, monitor) => {
       const offset    = monitor.getClientOffset();
       const canvasRect = canvasRef.current.getBoundingClientRect();
@@ -230,7 +232,7 @@ const Canvas = ({ gates, setGates, wires, setWires, onGateStateToggle, activeWir
         ));
       }
     },
-  }), [gates, pan, scale]);
+  }), [gates, pan, scale, isReadOnly]);
 
   /* ── Wire drawing ── */
   const handlePinClick = (gateId, pinId, pinType) => {
@@ -334,6 +336,7 @@ const Canvas = ({ gates, setGates, wires, setWires, onGateStateToggle, activeWir
               onToggleState={onGateStateToggle}
               onDelete={handleDeleteGate}
               computedValue={computedGateValues ? computedGateValues[gate.id] : null}
+              isReadOnly={isReadOnly}
             />
           ))}
         </div>

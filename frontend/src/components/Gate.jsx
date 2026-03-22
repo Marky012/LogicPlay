@@ -27,7 +27,7 @@ const GateShape = ({ type, isActive, computedValue }) => {
     return (
       <div className="relative flex items-center justify-center w-full h-full transition-all duration-200"
            style={{ filter: isActive ? `drop-shadow(0 0 8px ${glowColor})` : 'none' }}>
-        <div className="w-10 h-10 rounded-full flex items-center justify-center font-black text-lg transition-all duration-300 cursor-pointer"
+        <div className="input-toggle w-10 h-10 rounded-full flex items-center justify-center font-black text-lg transition-all duration-300 cursor-pointer"
              style={{
                background: isActive ? 'radial-gradient(circle, rgba(245,158,11,0.6), rgba(245,158,11,0.2))' : 'rgba(40,40,60,0.8)',
                border: `2px solid ${isActive ? c.stroke : 'rgba(255,255,255,0.15)'}`,
@@ -86,12 +86,13 @@ const getPins = (type) => {
   }
 };
 
-const Gate = ({ id, type, x, y, state, onPinClick, onToggleState, computedValue, onDelete }) => {
+const Gate = ({ id, type, x, y, state, onPinClick, onToggleState, computedValue, onDelete, isReadOnly }) => {
   const [{ isDragging }, dragRef] = useDrag(() => ({
     type: 'GATE',
     item: { id, type },
+    canDrag: () => !isReadOnly,
     collect: (monitor) => ({ isDragging: !!monitor.isDragging() }),
-  }), [id, type]);
+  }), [id, type, isReadOnly]);
 
   const cfg = GATE_CONFIGS[type] || GATE_CONFIGS.AND;
   const pins = getPins(type);
@@ -123,14 +124,16 @@ const Gate = ({ id, type, x, y, state, onPinClick, onToggleState, computedValue,
       </div>
 
       {/* Delete button — shows on hover */}
-      <button className="absolute -top-2.5 -right-2.5 w-5 h-5 rounded-full text-[10px] font-bold flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity z-20 hover:scale-110"
-              style={{ background: 'rgba(255,51,102,0.85)', color: '#fff', border: '1px solid rgba(255,51,102,0.5)', lineHeight: 1 }}
-              onClick={(e) => { e.stopPropagation(); onDelete && onDelete(id); }}>
-        ×
-      </button>
+      {!isReadOnly && (
+        <button className="absolute -top-2.5 -right-2.5 w-5 h-5 rounded-full text-[10px] font-bold flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity z-20 hover:scale-110"
+                style={{ background: 'rgba(255,51,102,0.85)', color: '#fff', border: '1px solid rgba(255,51,102,0.5)', lineHeight: 1 }}
+                onClick={(e) => { e.stopPropagation(); onDelete && onDelete(id); }}>
+          ×
+        </button>
+      )}
 
       {/* Input pins (left side) */}
-      {pins.in > 0 && (
+      {!isReadOnly && pins.in > 0 && (
         <div className="absolute flex flex-col justify-around h-full py-1.5" style={{ left: -10, top: 0 }}>
           {Array.from({ length: pins.in }).map((_, i) => (
             <div key={`in-${i}`}
@@ -147,7 +150,7 @@ const Gate = ({ id, type, x, y, state, onPinClick, onToggleState, computedValue,
       )}
 
       {/* Output pin (right side) */}
-      {pins.out > 0 && (
+      {!isReadOnly && pins.out > 0 && (
         <div className="absolute flex flex-col justify-around h-full py-1.5" style={{ right: -10, top: 0 }}>
           <div className="w-3 h-3 rounded-full cursor-pointer transition-all duration-150 hover:scale-150"
                style={{
