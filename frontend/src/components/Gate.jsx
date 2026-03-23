@@ -1,5 +1,6 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useDrag } from 'react-dnd';
+import ConfirmModal from './ConfirmModal';
 
 /* ── Gate SVG shapes ── */
 const GateShape = ({ type, isActive, computedValue }) => {
@@ -87,6 +88,8 @@ const getPins = (type) => {
 };
 
 const Gate = ({ id, type, x, y, state, onPinClick, onToggleState, computedValue, onDelete, isReadOnly }) => {
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+
   const [{ isDragging }, dragRef] = useDrag(() => ({
     type: 'GATE',
     item: { id, type },
@@ -125,11 +128,24 @@ const Gate = ({ id, type, x, y, state, onPinClick, onToggleState, computedValue,
 
       {/* Delete button — shows on hover */}
       {!isReadOnly && (
-        <button className="absolute -top-2.5 -right-2.5 w-5 h-5 rounded-full text-[10px] font-bold flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity z-20 hover:scale-110"
-                style={{ background: 'rgba(255,51,102,0.85)', color: '#fff', border: '1px solid rgba(255,51,102,0.5)', lineHeight: 1 }}
-                onClick={(e) => { e.stopPropagation(); onDelete && onDelete(id); }}>
-          ×
-        </button>
+        <>
+          <button
+            className="absolute -top-2.5 -right-2.5 w-5 h-5 rounded-full text-[10px] font-bold flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity z-20 hover:scale-110"
+            style={{ background: 'rgba(255,51,102,0.85)', color: '#fff', border: '1px solid rgba(255,51,102,0.5)', lineHeight: 1 }}
+            onClick={(e) => { e.stopPropagation(); setShowDeleteConfirm(true); }}
+          >
+            ×
+          </button>
+          <ConfirmModal
+            isOpen={showDeleteConfirm}
+            title="Delete Gate?"
+            message="This will also remove all connected wires."
+            confirmLabel="Delete"
+            danger
+            onConfirm={() => { setShowDeleteConfirm(false); onDelete && onDelete(id); }}
+            onCancel={() => setShowDeleteConfirm(false)}
+          />
+        </>
       )}
 
       {/* Input pins (left side) */}

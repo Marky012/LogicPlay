@@ -10,6 +10,8 @@ import Gamification from '../components/Gamification.jsx';
 import ChallengeList from '../components/ChallengeList.jsx';
 import TruthTable from '../components/TruthTable.jsx';
 import SuccessModal from '../components/SuccessModal.jsx';
+import ConfirmModal from '../components/ConfirmModal.jsx';
+import BottomSheet from '../components/BottomSheet.jsx';
 import { useToast } from '../components/ToastNotification.jsx';
 import { validateCircuitConnections, evaluateCircuit } from '../utils/circuitLogic';
 import { saveCircuit, getUser } from '../utils/api';
@@ -99,6 +101,7 @@ const Playground = () => {
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [resetViewTrigger, setResetViewTrigger]   = useState(0);
   const [viewMode, setViewMode]                   = useState(false);
+  const [showClearConfirm, setShowClearConfirm]   = useState(false);
 
   useEffect(() => {
     if (gates.length > 0 || wires.length > 0) {
@@ -273,20 +276,12 @@ const Playground = () => {
         </div>
 
         {/* ── Main Layout ── */}
-        <main className="flex-1 flex flex-row p-4 gap-4 overflow-hidden">
+        <main className="flex-1 flex flex-col lg:flex-row p-3 gap-3 overflow-auto lg:overflow-hidden">
 
-          {/* Left: Toolbar + Challenge List */}
+          {/* Left: Toolbar only (hidden on mobile, shows on desktop) */}
           {!viewMode && (
-            <div className="flex flex-col gap-4 flex-shrink-0 relative z-50" style={{ width: '220px' }}>
+            <div className="flex-shrink-0 relative z-50 w-full lg:w-[200px]">
               <Toolbar />
-              <div className="section-divider" />
-              <ChallengeList
-                onSelectChallenge={(c) => {
-                  setSelectedChallenge(c);
-                  addToast('info', `Challenge: ${c.title}`);
-                }}
-                selectedChallengeId={selectedChallenge?.id}
-              />
             </div>
           )}
 
@@ -303,28 +298,218 @@ const Playground = () => {
             isReadOnly={viewMode}
           />
 
-          {/* Right: Tabbed Panel */}
-          <div className="flex flex-col gap-3 flex-shrink-0" style={{ width: '220px' }}>
+          {/* Right: Tabbed Panel + Challenge List — desktop only */}
+          <div className="hidden lg:flex flex-col gap-3 flex-shrink-0 overflow-y-auto lg:w-[230px]" style={{ maxHeight: '100%' }}>
             {viewMode ? (
-              <div className="glass-panel p-5 flex flex-col items-center gap-4 animate-fade-in shadow-glow-blue h-full" style={{ border: '1px solid rgba(0,212,255,0.3)' }}>
-                <div className="text-4xl mt-4 mb-2 opacity-80 animate-float">👀</div>
-                <h3 className="text-sm font-black tracking-widest uppercase text-center" style={{ color: 'var(--neon-blue)' }}>View Mode</h3>
-                <p className="text-xs text-slate-400 leading-relaxed text-center mb-4">
-                  You are viewing a saved circuit. Editing is disabled.
-                </p>
-                <SimButton isPlaying={isPlaying} onClick={isPlaying ? stopSimulation : startSimulation} />
-                
-                <button 
-                  onClick={() => { setViewMode(false); setSelectedChallenge(null); }} 
-                  className="btn-primary w-full py-2.5 text-xs font-bold uppercase tracking-widest mt-auto shadow-glow-blue"
-                >
-                  Close View Mode
-                </button>
-              </div>
+              <>
+                {/* View Mode controls panel */}
+                <div className="glass-panel p-4 flex flex-col gap-3 animate-fade-in" style={{ border: '1px solid rgba(0,212,255,0.3)', boxShadow: '0 0 24px rgba(0,212,255,0.08)' }}>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xl">👀</span>
+                    <div>
+                      <h3 className="text-xs font-black tracking-widest uppercase" style={{ color: 'var(--neon-blue)' }}>View Mode</h3>
+                      <p className="text-[10px] text-slate-500 leading-tight">Editing is disabled</p>
+                    </div>
+                  </div>
+                  <SimButton isPlaying={isPlaying} onClick={isPlaying ? stopSimulation : startSimulation} />
+                  <button 
+                    onClick={() => { setViewMode(false); setSelectedChallenge(null); }} 
+                    className="btn-primary w-full py-2 text-xs font-bold uppercase tracking-widest shadow-glow-blue"
+                  >
+                    Close View Mode
+                  </button>
+                </div>
+
+                <div className="section-divider" />
+
+                {/* Truth Table — always visible in view mode */}
+                <div className="flex flex-col gap-1.5 animate-fade-in">
+                  <p className="text-[9px] font-black uppercase tracking-widest text-slate-500 px-1">Truth Table</p>
+                  <div className="rounded-xl overflow-hidden"
+                       style={{ background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.05)' }}>
+                    <TruthTable gates={gates} wires={wires} />
+                  </div>
+                </div>
+
+                {/* Circuit Stats — always visible in view mode */}
+                <div className="flex flex-col gap-2 animate-fade-in">
+                  <p className="text-[9px] font-black uppercase tracking-widest text-slate-500 px-1">Circuit Info</p>
+                  <div className="grid grid-cols-2 gap-2">
+                    <StatChip label="Gates"   value={gates.filter(g => g.type !== 'INPUT' && g.type !== 'OUTPUT').length} color="var(--neon-blue)" />
+                    <StatChip label="Wires"   value={wires.length} color="var(--neon-green)" />
+                    <StatChip label="Inputs"  value={gates.filter(g => g.type === 'INPUT').length}  color="var(--neon-amber)" />
+                    <StatChip label="Outputs" value={gates.filter(g => g.type === 'OUTPUT').length} color="var(--neon-red)" />
+                  </div>
+                  {computedGateValues && gates.filter(g => g.type === 'OUTPUT').length > 0 && (
+                    <div className="rounded-xl p-3" style={{ background: 'rgba(0,0,0,0.25)', border: '1px solid rgba(255,255,255,0.05)' }}>
+                      <p className="text-[9px] text-slate-500 uppercase tracking-widest mb-2">Output States</p>
+                      {gates.filter(g => g.type === 'OUTPUT').map((g, i) => {
+                        const val = computedGateValues[g.id];
+                        return (
+                          <div key={g.id} className="flex items-center justify-between mb-1">
+                            <span className="text-xs text-slate-400">Output {i + 1}</span>
+                            <span className="font-black text-sm" style={{ color: val === 1 ? 'var(--neon-green)' : 'rgba(255,51,102,0.7)' }}>
+                              {val === 1 ? 'HIGH' : val === 0 ? 'LOW' : '—'}
+                            </span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              </>
             ) : (
               <>
                 {/* Tab buttons */}
-            <div className="flex gap-1 p-1 rounded-xl" style={{ background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.05)' }}>
+                <div className="flex gap-1 p-1 rounded-xl" style={{ background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.05)' }}>
+                  {TABS.map(tab => (
+                    <button key={tab}
+                            onClick={() => setActiveTab(tab)}
+                            className="flex-1 py-1.5 text-[10px] font-bold rounded-lg transition-all duration-200"
+                            style={{
+                              background: activeTab === tab ? 'rgba(0,212,255,0.15)' : 'transparent',
+                              color: activeTab === tab ? 'var(--neon-blue)' : 'rgba(255,255,255,0.35)',
+                              border: activeTab === tab ? '1px solid rgba(0,212,255,0.3)' : '1px solid transparent',
+                            }}>
+                      {tab}
+                    </button>
+                  ))}
+                </div>
+
+                {/* Controls Tab */}
+                {activeTab === 'Controls' && (
+                  <div className="flex flex-col gap-3 animate-fade-in">
+                    <SimButton isPlaying={isPlaying} onClick={isPlaying ? stopSimulation : startSimulation} />
+
+                    <button onClick={handleGrade} disabled={grading || gates.length === 0}
+                            className="btn-primary w-full py-2.5 text-sm disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
+                            style={{ background: grading ? 'rgba(59,130,246,0.3)' : undefined }}>
+                      {grading ? (
+                        <span className="flex items-center justify-center gap-2">
+                          <svg className="animate-spin w-3 h-3" viewBox="0 0 24 24" fill="none">
+                            <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" strokeDasharray="30" strokeDashoffset="10"/>
+                          </svg>
+                          Grading…
+                        </span>
+                      ) : '🎯 Grade Circuit'}
+                    </button>
+
+                    <button onClick={handleSave} 
+                            disabled={!hasUnsavedChanges || gates.length === 0}
+                            className="btn-secondary w-full py-2 text-sm disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100">
+                      💾 Save Circuit
+                    </button>
+
+                    <button onClick={() => setShowClearConfirm(true)} className="btn-danger w-full py-2 text-sm">
+                      🗑 Clear Canvas
+                    </button>
+
+                    <FeedbackBanner feedback={feedback} />
+                  </div>
+                )}
+
+                {/* Truth Table Tab */}
+                {activeTab === 'Truth Table' && (
+                  <div className="animate-fade-in rounded-xl overflow-hidden"
+                       style={{ background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.05)' }}>
+                    <TruthTable gates={gates} wires={wires} />
+                  </div>
+                )}
+
+                {/* Circuit Stats Tab */}
+                {activeTab === 'Circuit' && (
+                  <div className="flex flex-col gap-3 animate-fade-in">
+                    <div className="grid grid-cols-2 gap-2">
+                      <StatChip label="Gates" value={gates.filter(g => g.type !== 'INPUT' && g.type !== 'OUTPUT').length} color="var(--neon-blue)" />
+                      <StatChip label="Wires" value={wires.length} color="var(--neon-green)" />
+                      <StatChip label="Inputs"  value={gates.filter(g=>g.type==='INPUT').length}  color="var(--neon-amber)" />
+                      <StatChip label="Outputs" value={gates.filter(g=>g.type==='OUTPUT').length} color="var(--neon-red)" />
+                    </div>
+
+                    {computedGateValues && gates.filter(g=>g.type==='OUTPUT').length > 0 && (
+                      <div className="rounded-xl p-3" style={{ background: 'rgba(0,0,0,0.25)', border: '1px solid rgba(255,255,255,0.05)' }}>
+                        <p className="text-[10px] text-slate-500 uppercase tracking-widest mb-2">Output States</p>
+                        {gates.filter(g=>g.type==='OUTPUT').map((g,i) => {
+                          const val = computedGateValues[g.id];
+                          return (
+                            <div key={g.id} className="flex items-center justify-between mb-1">
+                              <span className="text-xs text-slate-400">Output {i+1}</span>
+                              <span className="font-black text-sm" style={{ color: val===1 ? 'var(--neon-green)' : 'rgba(255,51,102,0.7)' }}>
+                                {val === 1 ? 'HIGH' : val === 0 ? 'LOW' : '—'}
+                              </span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* ── Challenges Section (below controls) ── */}
+                <div className="section-divider" />
+                <ChallengeList
+                  onSelectChallenge={(c) => {
+                    setSelectedChallenge(c);
+                    addToast('info', `Challenge: ${c.title}`);
+                  }}
+                  selectedChallengeId={selectedChallenge?.id}
+                />
+              </>
+            )}
+          </div>
+        </main>
+      </div>
+
+      {/* ── Mobile Bottom Sheet (right panel) ── */}
+      <BottomSheet
+        label={viewMode ? '👀 View Mode' : activeTab}
+        badge={
+          isPlaying ? (
+            <span className="w-2 h-2 rounded-full animate-pulse" style={{ background: 'var(--neon-green)', boxShadow: '0 0 6px var(--neon-green)' }} />
+          ) : feedback ? (
+            <span className="w-2 h-2 rounded-full" style={{ background: 'var(--neon-amber)' }} />
+          ) : null
+        }
+      >
+        {viewMode ? (
+          <>
+            <div className="glass-panel p-4 flex flex-col gap-3" style={{ border: '1px solid rgba(0,212,255,0.3)' }}>
+              <div className="flex items-center gap-2">
+                <span className="text-xl">👀</span>
+                <div>
+                  <h3 className="text-xs font-black tracking-widest uppercase" style={{ color: 'var(--neon-blue)' }}>View Mode</h3>
+                  <p className="text-[10px] text-slate-500 leading-tight">Editing is disabled</p>
+                </div>
+              </div>
+              <SimButton isPlaying={isPlaying} onClick={isPlaying ? stopSimulation : startSimulation} />
+              <button
+                onClick={() => { setViewMode(false); setSelectedChallenge(null); }}
+                className="btn-primary w-full py-2 text-xs font-bold uppercase tracking-widest shadow-glow-blue"
+              >
+                Close View Mode
+              </button>
+            </div>
+            <div className="section-divider" />
+            <div className="flex flex-col gap-1.5">
+              <p className="text-[9px] font-black uppercase tracking-widest text-slate-500 px-1">Truth Table</p>
+              <div className="rounded-xl overflow-hidden" style={{ background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.05)' }}>
+                <TruthTable gates={gates} wires={wires} />
+              </div>
+            </div>
+            <div className="flex flex-col gap-2 mt-3">
+              <p className="text-[9px] font-black uppercase tracking-widest text-slate-500 px-1">Circuit Info</p>
+              <div className="grid grid-cols-2 gap-2">
+                <StatChip label="Gates"   value={gates.filter(g => g.type !== 'INPUT' && g.type !== 'OUTPUT').length} color="var(--neon-blue)" />
+                <StatChip label="Wires"   value={wires.length} color="var(--neon-green)" />
+                <StatChip label="Inputs"  value={gates.filter(g => g.type === 'INPUT').length}  color="var(--neon-amber)" />
+                <StatChip label="Outputs" value={gates.filter(g => g.type === 'OUTPUT').length} color="var(--neon-red)" />
+              </div>
+            </div>
+          </>
+        ) : (
+          <>
+            {/* Tab buttons */}
+            <div className="flex gap-1 p-1 rounded-xl mb-3" style={{ background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.05)' }}>
               {TABS.map(tab => (
                 <button key={tab}
                         onClick={() => setActiveTab(tab)}
@@ -338,81 +523,55 @@ const Playground = () => {
                 </button>
               ))}
             </div>
-
-            {/* Controls Tab */}
             {activeTab === 'Controls' && (
-              <div className="flex flex-col gap-3 animate-fade-in">
+              <div className="flex flex-col gap-3">
                 <SimButton isPlaying={isPlaying} onClick={isPlaying ? stopSimulation : startSimulation} />
-
                 <button onClick={handleGrade} disabled={grading || gates.length === 0}
-                        className="btn-primary w-full py-2.5 text-sm disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
-                        style={{ background: grading ? 'rgba(59,130,246,0.3)' : undefined }}>
-                  {grading ? (
-                    <span className="flex items-center justify-center gap-2">
-                      <svg className="animate-spin w-3 h-3" viewBox="0 0 24 24" fill="none">
-                        <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" strokeDasharray="30" strokeDashoffset="10"/>
-                      </svg>
-                      Grading…
-                    </span>
-                  ) : '🎯 Grade Circuit'}
+                        className="btn-primary w-full py-2.5 text-sm disabled:opacity-50">
+                  {grading ? 'Grading…' : '🎯 Grade Circuit'}
                 </button>
-
-                <button onClick={handleSave} 
-                        disabled={!hasUnsavedChanges || gates.length === 0}
-                        className="btn-secondary w-full py-2 text-sm disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100">
+                <button onClick={handleSave} disabled={!hasUnsavedChanges || gates.length === 0}
+                        className="btn-secondary w-full py-2 text-sm disabled:opacity-50">
                   💾 Save Circuit
                 </button>
-
-                <button onClick={clearCanvas} className="btn-danger w-full py-2 text-sm mt-auto">
+                <button onClick={() => setShowClearConfirm(true)} className="btn-danger w-full py-2 text-sm">
                   🗑 Clear Canvas
                 </button>
-
                 <FeedbackBanner feedback={feedback} />
               </div>
             )}
-
-            {/* Truth Table Tab */}
             {activeTab === 'Truth Table' && (
-              <div className="animate-fade-in rounded-xl overflow-hidden"
-                   style={{ background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.05)' }}>
+              <div className="rounded-xl overflow-hidden" style={{ background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.05)' }}>
                 <TruthTable gates={gates} wires={wires} />
               </div>
             )}
-
-            {/* Circuit Stats Tab */}
             {activeTab === 'Circuit' && (
-              <div className="flex flex-col gap-3 animate-fade-in">
-                <div className="grid grid-cols-2 gap-2">
-                  <StatChip label="Gates" value={gates.filter(g => g.type !== 'INPUT' && g.type !== 'OUTPUT').length} color="var(--neon-blue)" />
-                  <StatChip label="Wires" value={wires.length} color="var(--neon-green)" />
-                  <StatChip label="Inputs"  value={gates.filter(g=>g.type==='INPUT').length}  color="var(--neon-amber)" />
-                  <StatChip label="Outputs" value={gates.filter(g=>g.type==='OUTPUT').length} color="var(--neon-red)" />
-                </div>
-
-                {/* Current output states */}
-                {computedGateValues && gates.filter(g=>g.type==='OUTPUT').length > 0 && (
-                  <div className="rounded-xl p-3" style={{ background: 'rgba(0,0,0,0.25)', border: '1px solid rgba(255,255,255,0.05)' }}>
-                    <p className="text-[10px] text-slate-500 uppercase tracking-widest mb-2">Output States</p>
-                    {gates.filter(g=>g.type==='OUTPUT').map((g,i) => {
-                      const val = computedGateValues[g.id];
-                      return (
-                        <div key={g.id} className="flex items-center justify-between mb-1">
-                          <span className="text-xs text-slate-400">Output {i+1}</span>
-                          <span className="font-black text-sm" style={{ color: val===1 ? 'var(--neon-green)' : 'rgba(255,51,102,0.7)' }}>
-                            {val === 1 ? 'HIGH' : val === 0 ? 'LOW' : '—'}
-                          </span>
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
+              <div className="grid grid-cols-2 gap-2">
+                <StatChip label="Gates"   value={gates.filter(g => g.type !== 'INPUT' && g.type !== 'OUTPUT').length} color="var(--neon-blue)" />
+                <StatChip label="Wires"   value={wires.length} color="var(--neon-green)" />
+                <StatChip label="Inputs"  value={gates.filter(g => g.type === 'INPUT').length}  color="var(--neon-amber)" />
+                <StatChip label="Outputs" value={gates.filter(g => g.type === 'OUTPUT').length} color="var(--neon-red)" />
               </div>
             )}
-            </>
-            )}
-          </div>
-        </main>
-      </div>
+            <div className="section-divider" />
+            <ChallengeList
+              onSelectChallenge={(c) => { setSelectedChallenge(c); addToast('info', `Challenge: ${c.title}`); }}
+              selectedChallengeId={selectedChallenge?.id}
+            />
+          </>
+        )}
+      </BottomSheet>
+
+      {/* ── Clear Canvas Confirm ── */}
+      <ConfirmModal
+        isOpen={showClearConfirm}
+        title="Clear the canvas?"
+        message="All gates and wires will be permanently removed."
+        confirmLabel="Clear"
+        danger
+        onConfirm={() => { setShowClearConfirm(false); clearCanvas(); }}
+        onCancel={() => setShowClearConfirm(false)}
+      />
 
       {/* ── Success Modal ── */}
       <SuccessModal

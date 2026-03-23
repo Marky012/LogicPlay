@@ -151,29 +151,36 @@ const SectionHeader = ({ label }) => (
 
 const Toolbar = () => {
   return (
-    <div className="w-56 flex flex-col gap-1 flex-shrink-0 pr-1 pb-4">
-      <div className="px-1 flex flex-col gap-2.5">
-        <h2 className="text-xs font-black uppercase tracking-widest mb-3" style={{ color: 'var(--neon-blue)' }}>
+    <div className="w-full flex flex-col gap-1 flex-shrink-0 pr-1 pb-2 lg:pb-4">
+      {/* Gate list — horizontal scroll on mobile, vertical on desktop */}
+      <div className="flex flex-row lg:flex-col gap-2 overflow-x-auto lg:overflow-x-visible pb-1 lg:pb-0">
+        <h2 className="hidden lg:block text-xs font-black uppercase tracking-widest mb-1 flex-shrink-0" style={{ color: 'var(--neon-blue)' }}>
           Components
         </h2>
 
-        <SectionHeader label="I/O" />
-        <ToolbarGate type="INPUT" />
-        <ToolbarGate type="OUTPUT" />
+        <div className="flex flex-row lg:flex-col gap-2 flex-shrink-0 lg:flex-shrink">
+          <SectionHeader label="I/O" />
+          <ToolbarGate type="INPUT" />
+          <ToolbarGate type="OUTPUT" />
+        </div>
 
-        <SectionHeader label="Basic Gates" />
-        <ToolbarGate type="AND" />
-        <ToolbarGate type="OR" />
-        <ToolbarGate type="NOT" />
+        <div className="flex flex-row lg:flex-col gap-2 flex-shrink-0 lg:flex-shrink">
+          <SectionHeader label="Basic" />
+          <ToolbarGate type="AND" />
+          <ToolbarGate type="OR" />
+          <ToolbarGate type="NOT" />
+        </div>
 
-        <SectionHeader label="Advanced Gates" />
-        <ToolbarGate type="NAND" />
-        <ToolbarGate type="NOR" />
-        <ToolbarGate type="XOR" />
+        <div className="flex flex-row lg:flex-col gap-2 flex-shrink-0 lg:flex-shrink">
+          <SectionHeader label="Advanced" />
+          <ToolbarGate type="NAND" />
+          <ToolbarGate type="NOR" />
+          <ToolbarGate type="XOR" />
+        </div>
       </div>
 
       {/* Tip */}
-      <div className="mt-4 mx-1 px-3 py-2 rounded-lg text-[10px] text-slate-500 leading-relaxed"
+      <div className="hidden lg:block mt-2 mx-1 px-3 py-2 rounded-lg text-[10px] text-slate-500 leading-relaxed"
         style={{ background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.05)' }}>
         💡 Drag gates to canvas. Click pins to wire them.
       </div>
