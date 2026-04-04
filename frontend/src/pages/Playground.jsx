@@ -1,7 +1,7 @@
 import React, { useState, useContext, useEffect, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { DndProvider } from 'react-dnd';
-import { HTML5Backend } from 'react-dnd-html5-backend';
+import { TouchBackend } from 'react-dnd-touch-backend';
 import { AuthContext } from '../context/AuthContext';
 import NavBar from '../components/NavBar';
 import Canvas from '../components/Canvas.jsx';
@@ -11,10 +11,13 @@ import ChallengeList from '../components/ChallengeList.jsx';
 import TruthTable from '../components/TruthTable.jsx';
 import SuccessModal from '../components/SuccessModal.jsx';
 import ConfirmModal from '../components/ConfirmModal.jsx';
+import SaveCircuitModal from '../components/SaveCircuitModal.jsx';
 import BottomSheet from '../components/BottomSheet.jsx';
+import SubmitAssignmentModal from '../components/SubmitAssignmentModal.jsx';
+import ReportCardModal from '../components/ReportCardModal.jsx';
 import { useToast } from '../components/ToastNotification.jsx';
 import { validateCircuitConnections, evaluateCircuit } from '../utils/circuitLogic';
-import { saveCircuit, getUser } from '../utils/api';
+import { saveCircuit, getUser, getCircuits } from '../utils/api';
 
 /* ── Animated Play/Stop Button ── */
 const SimButton = ({ isPlaying, onClick }) => (
@@ -80,7 +83,7 @@ const getCircuitHash = (g, w) => {
 };
 
 const Playground = () => {
-  const { user }   = useContext(AuthContext);
+  const { user, isTeacher } = useContext(AuthContext);
   const location   = useLocation();
   const navigate   = useNavigate();
   const addToast   = useToast();
@@ -102,8 +105,18 @@ const Playground = () => {
   const [resetViewTrigger, setResetViewTrigger]   = useState(0);
   const [viewMode, setViewMode]                   = useState(false);
   const [showClearConfirm, setShowClearConfirm]   = useState(false);
+  const [showSaveModal, setShowSaveModal]         = useState(false);
+  const [savedCircuitCount, setSavedCircuitCount] = useState(0);
+  const [showSubmitModal, setShowSubmitModal]     = useState(false);
+  const [reportCardData, setReportCardData]       = useState(null);
+  // Flag to skip the first gates/wires effect after a circuit load (prevents false unsaved-changes)
+  const skipNextChangeRef = useRef(false);
 
   useEffect(() => {
+    if (skipNextChangeRef.current) {
+      skipNextChangeRef.current = false;
+      return;
+    }
     if (gates.length > 0 || wires.length > 0) {
       setHasUnsavedChanges(true);
     }
@@ -118,8 +131,18 @@ const Playground = () => {
     }
   };
 
+  const fetchCircuitCount = async () => {
+    if (user?.username) {
+      try {
+        const circuits = await getCircuits(user.username);
+        setSavedCircuitCount(Array.isArray(circuits) ? circuits.length : 0);
+      } catch (e) { /* non-fatal */ }
+    }
+  };
+
   useEffect(() => {
     fetchProfile();
+    fetchCircuitCount();
     return () => clearInterval(evalRef.current);
   }, [user]);
 
@@ -128,14 +151,16 @@ const Playground = () => {
     if (location.state?.loadCircuit) {
       const c = location.state.loadCircuit;
       if (c.circuit_data?.gates && c.circuit_data?.wires) {
+        skipNextChangeRef.current = true; // prevent false unsaved-changes flag
         setGates(c.circuit_data.gates);
         setWires(c.circuit_data.wires);
-        
+
         let title = c.circuit_data.name || `Circuit #${c.id}`;
         setSelectedChallenge({ title, id: 'custom_loaded' });
         setViewMode(true);
+        setHasUnsavedChanges(false);
         lastSavedCircuitRef.current = getCircuitHash(c.circuit_data.gates, c.circuit_data.wires);
-        
+
         addToast('success', `Loaded ${title} in View Mode`);
 
         // Safely clear location state to prevent reload crashing
@@ -207,28 +232,35 @@ const Playground = () => {
     }
   };
 
-  const handleSave = async () => {
+  // Opens the naming modal; pre-flight validation happens here
+  const handleSave = () => {
+    if (gates.length === 0) { addToast('error', 'Nothing to save — add some gates first!'); return; }
     const validation = validateCircuitConnections(gates, wires);
     if (!validation.isValid) {
       addToast('error', `Cannot save: ${validation.errors[0]}`);
       return;
     }
-    
     const currentHash = getCircuitHash(gates, wires);
     if (lastSavedCircuitRef.current === currentHash) {
       addToast('info', 'This exact circuit is already saved!');
       return;
     }
+    setShowSaveModal(true);
+  };
 
+  // Actually persists — called by SaveCircuitModal with the chosen name
+  const executeCircuitSave = async (circuitName) => {
+    setShowSaveModal(false);
     try {
       const circuitData = {
-        circuit_data: { gates, wires, name: selectedChallenge?.title || 'My Circuit' },
+        circuit_data: { gates, wires, name: circuitName },
         score: evaluateCircuit(gates, wires).score,
         feedback: 'Saved',
       };
       await saveCircuit(circuitData, profileData.id || 1);
-      lastSavedCircuitRef.current = currentHash;
-      addToast('success', 'Circuit saved! XP updated.');
+      lastSavedCircuitRef.current = getCircuitHash(gates, wires);
+      setSavedCircuitCount(prev => prev + 1);
+      addToast('success', `"${circuitName}" saved! XP updated.`);
       fetchProfile();
       setHasUnsavedChanges(false);
     } catch (e) {
@@ -237,11 +269,17 @@ const Playground = () => {
   };
 
   const clearCanvas = () => {
+    if (gates.length === 0 && wires.length === 0) {
+      addToast('info', 'Nothing to clear — canvas is already empty!');
+      return;
+    }
     setGates([]); setWires([]); setActiveWires(null);
     setComputedGateValues(null); setFeedback('');
     if (isPlaying) stopSimulation();
     setResetViewTrigger(prev => prev + 1);
     lastSavedCircuitRef.current = null;
+    skipNextChangeRef.current = true; // clearing is not an unsaved change
+    setHasUnsavedChanges(false);
     addToast('info', 'Canvas cleared.');
   };
 
@@ -252,13 +290,13 @@ const Playground = () => {
   );
 
   return (
-    <DndProvider backend={HTML5Backend}>
+    <DndProvider backend={TouchBackend} options={{ enableMouseEvents: true }}>
       <div className="flex flex-col min-h-screen" style={{ background: 'var(--c-bg)' }}>
         {/* ── NavBar ── */}
         <NavBar profileData={profileData} />
 
         {/* ── Gamification HUD ── */}
-        <div className="px-4 pt-3 pb-2 flex items-center justify-between flex-wrap gap-3"
+        <div className="px-2 sm:px-4 pt-1.5 sm:pt-3 pb-1 sm:pb-2 flex items-center justify-between flex-wrap gap-2"
              style={{ borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
           <Gamification
             points={profileData.points || 0}
@@ -276,7 +314,7 @@ const Playground = () => {
         </div>
 
         {/* ── Main Layout ── */}
-        <main className="flex-1 flex flex-col lg:flex-row p-3 gap-3 overflow-auto lg:overflow-hidden">
+        <main className="flex-1 flex flex-col lg:flex-row p-2 lg:p-3 gap-2 lg:gap-3 overflow-auto lg:overflow-hidden">
 
           {/* Left: Toolbar only (hidden on mobile, shows on desktop) */}
           {!viewMode && (
@@ -305,7 +343,6 @@ const Playground = () => {
                 {/* View Mode controls panel */}
                 <div className="glass-panel p-4 flex flex-col gap-3 animate-fade-in" style={{ border: '1px solid rgba(0,212,255,0.3)', boxShadow: '0 0 24px rgba(0,212,255,0.08)' }}>
                   <div className="flex items-center gap-2">
-                    <span className="text-xl">👀</span>
                     <div>
                       <h3 className="text-xs font-black tracking-widest uppercase" style={{ color: 'var(--neon-blue)' }}>View Mode</h3>
                       <p className="text-[10px] text-slate-500 leading-tight">Editing is disabled</p>
@@ -322,6 +359,15 @@ const Playground = () => {
 
                 <div className="section-divider" />
 
+                {/* Circuit Name */}
+                {selectedChallenge?.title && (
+                  <div className="flex flex-col gap-0.5 animate-fade-in px-1 mb-3">
+                    <p className="text-[9px] font-black uppercase tracking-widest text-slate-500">Circuit Name</p>
+                    <span className="text-sm font-bold text-white truncate w-full" title={selectedChallenge.title}>
+                      {selectedChallenge.title}
+                    </span>
+                  </div>
+                )}
                 {/* Truth Table — always visible in view mode */}
                 <div className="flex flex-col gap-1.5 animate-fade-in">
                   <p className="text-[9px] font-black uppercase tracking-widest text-slate-500 px-1">Truth Table</p>
@@ -391,17 +437,56 @@ const Playground = () => {
                           </svg>
                           Grading…
                         </span>
-                      ) : '🎯 Grade Circuit'}
+                      ) : (
+                        <span className="flex items-center justify-center gap-2">
+                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+                            <polyline points="22 4 12 14.01 9 11.01" />
+                          </svg>
+                          Grade Circuit
+                        </span>
+                      )}
                     </button>
 
                     <button onClick={handleSave} 
                             disabled={!hasUnsavedChanges || gates.length === 0}
-                            className="btn-secondary w-full py-2 text-sm disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100">
-                      💾 Save Circuit
+                            className="btn-secondary w-full py-2 text-sm disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 flex items-center justify-center gap-2">
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" />
+                        <polyline points="17 21 17 13 7 13 7 21" />
+                        <polyline points="7 3 7 8 15 8" />
+                      </svg>
+                      Save Circuit
                     </button>
 
-                    <button onClick={() => setShowClearConfirm(true)} className="btn-danger w-full py-2 text-sm">
-                      🗑 Clear Canvas
+                    {!isTeacher && (
+                      <button onClick={() => {
+                        if (gates.length === 0) { addToast('error', 'Build a circuit first before submitting!'); return; }
+                        setShowSubmitModal(true);
+                      }}
+                        className="w-full py-2 text-sm font-bold flex items-center justify-center gap-2 rounded-xl transition-all duration-200 hover:scale-[1.02]"
+                        style={{
+                          background: 'rgba(124,58,237,0.15)',
+                          border: '1px solid rgba(124,58,237,0.35)',
+                          color: '#a78bfa',
+                        }}>
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                          <polyline points="17 8 12 3 7 8"/>
+                          <line x1="12" y1="3" x2="12" y2="15"/>
+                        </svg>
+                        Submit to Assignment
+                      </button>
+                    )}
+
+                    <button onClick={() => setShowClearConfirm(true)} className="btn-danger w-full py-2 text-sm flex items-center justify-center gap-2">
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                        <polyline points="3 6 5 6 21 6" />
+                        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                        <line x1="10" y1="11" x2="10" y2="17" />
+                        <line x1="14" y1="11" x2="14" y2="17" />
+                      </svg>
+                      Clear Canvas
                     </button>
 
                     <FeedbackBanner feedback={feedback} />
@@ -462,7 +547,7 @@ const Playground = () => {
 
       {/* ── Mobile Bottom Sheet (right panel) ── */}
       <BottomSheet
-        label={viewMode ? '👀 View Mode' : activeTab}
+        label={viewMode ? 'View Mode' : activeTab}
         badge={
           isPlaying ? (
             <span className="w-2 h-2 rounded-full animate-pulse" style={{ background: 'var(--neon-green)', boxShadow: '0 0 6px var(--neon-green)' }} />
@@ -474,12 +559,21 @@ const Playground = () => {
         {viewMode ? (
           <>
             <div className="glass-panel p-4 flex flex-col gap-3" style={{ border: '1px solid rgba(0,212,255,0.3)' }}>
-              <div className="flex items-center gap-2">
-                <span className="text-xl">👀</span>
-                <div>
-                  <h3 className="text-xs font-black tracking-widest uppercase" style={{ color: 'var(--neon-blue)' }}>View Mode</h3>
-                  <p className="text-[10px] text-slate-500 leading-tight">Editing is disabled</p>
+              <div className="flex items-start justify-between w-full">
+                <div className="flex items-center gap-2">
+                  <div>
+                    <h3 className="text-xs font-black tracking-widest uppercase" style={{ color: 'var(--neon-blue)' }}>View Mode</h3>
+                    <p className="text-[10px] text-slate-500 leading-tight">Editing is disabled</p>
+                  </div>
                 </div>
+                {selectedChallenge?.title && (
+                  <div className="flex flex-col items-end gap-0.5 max-w-[45%]">
+                    <p className="text-[9px] font-black uppercase tracking-widest text-slate-500">Circuit Name</p>
+                    <span className="text-sm font-bold text-white truncate w-full text-right" title={selectedChallenge.title}>
+                      {selectedChallenge.title}
+                    </span>
+                  </div>
+                )}
               </div>
               <SimButton isPlaying={isPlaying} onClick={isPlaying ? stopSimulation : startSimulation} />
               <button
@@ -490,6 +584,8 @@ const Playground = () => {
               </button>
             </div>
             <div className="section-divider" />
+            
+
             <div className="flex flex-col gap-1.5">
               <p className="text-[9px] font-black uppercase tracking-widest text-slate-500 px-1">Truth Table</p>
               <div className="rounded-xl overflow-hidden" style={{ background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.05)' }}>
@@ -504,6 +600,22 @@ const Playground = () => {
                 <StatChip label="Inputs"  value={gates.filter(g => g.type === 'INPUT').length}  color="var(--neon-amber)" />
                 <StatChip label="Outputs" value={gates.filter(g => g.type === 'OUTPUT').length} color="var(--neon-red)" />
               </div>
+              {computedGateValues && gates.filter(g => g.type === 'OUTPUT').length > 0 && (
+                <div className="rounded-xl p-3" style={{ background: 'rgba(0,0,0,0.25)', border: '1px solid rgba(255,255,255,0.05)' }}>
+                  <p className="text-[9px] text-slate-500 uppercase tracking-widest mb-2">Output States</p>
+                  {gates.filter(g => g.type === 'OUTPUT').map((g, i) => {
+                    const val = computedGateValues[g.id];
+                    return (
+                      <div key={g.id} className="flex items-center justify-between mb-1">
+                        <span className="text-xs text-slate-400">Output {i + 1}</span>
+                        <span className="font-black text-sm" style={{ color: val === 1 ? 'var(--neon-green)' : 'rgba(255,51,102,0.7)' }}>
+                          {val === 1 ? 'HIGH' : val === 0 ? 'LOW' : '—'}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           </>
         ) : (
@@ -534,6 +646,16 @@ const Playground = () => {
                         className="btn-secondary w-full py-2 text-sm disabled:opacity-50">
                   💾 Save Circuit
                 </button>
+                {!isTeacher && (
+                  <button onClick={() => {
+                    if (gates.length === 0) { addToast('error', 'Build a circuit first!'); return; }
+                    setShowSubmitModal(true);
+                  }}
+                    className="w-full py-2 text-sm font-bold rounded-xl flex items-center justify-center gap-1.5"
+                    style={{ background: 'rgba(124,58,237,0.15)', border: '1px solid rgba(124,58,237,0.35)', color: '#a78bfa' }}>
+                    📤 Submit to Assignment
+                  </button>
+                )}
                 <button onClick={() => setShowClearConfirm(true)} className="btn-danger w-full py-2 text-sm">
                   🗑 Clear Canvas
                 </button>
@@ -561,6 +683,46 @@ const Playground = () => {
           </>
         )}
       </BottomSheet>
+
+      {/* ── Submit to Assignment Modal ── */}
+      <SubmitAssignmentModal
+        isOpen={showSubmitModal}
+        studentUsername={user?.username}
+        circuitData={{ gates, wires }}
+        onSubmitted={({ assignmentTitle }) => {
+          setShowSubmitModal(false);
+          const score = evaluateCircuit(gates, wires).score || 0;
+          setReportCardData({
+            studentUsername: user?.username,
+            assignmentTitle,
+            score,
+            gateCount: gates.filter(g => g.type !== 'INPUT' && g.type !== 'OUTPUT').length,
+            wireCount: wires.length,
+            timestamp: new Date().toLocaleTimeString()
+          });
+        }}
+        onCancel={() => setShowSubmitModal(false)}
+      />
+
+      {/* ── Report Card Modal ── */}
+      <ReportCardModal
+        isOpen={!!reportCardData}
+        data={reportCardData}
+        onConfirm={() => setReportCardData(null)}
+      />
+
+      {/* ── Save Circuit Modal ── */}
+      <SaveCircuitModal
+        isOpen={showSaveModal}
+        suggestedName={`My Circuit ${savedCircuitCount + 1}`}
+        suggestions={[
+          `My Circuit ${savedCircuitCount + 1}`,
+          `Untitled ${savedCircuitCount + 1}`,
+          ...(selectedChallenge?.title && selectedChallenge.id !== 'custom_loaded' ? [selectedChallenge.title] : []),
+        ].filter((v, i, a) => a.indexOf(v) === i)}
+        onSave={executeCircuitSave}
+        onCancel={() => setShowSaveModal(false)}
+      />
 
       {/* ── Clear Canvas Confirm ── */}
       <ConfirmModal

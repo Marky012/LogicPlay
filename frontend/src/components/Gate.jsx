@@ -3,7 +3,7 @@ import { useDrag } from 'react-dnd';
 import ConfirmModal from './ConfirmModal';
 
 /* ── Gate SVG shapes ── */
-const GateShape = ({ type, isActive, computedValue }) => {
+const GateShape = ({ type, isActive, computedValue, label }) => {
   const getGlowColor = () => {
     if (type === 'OUTPUT') return isActive ? 'rgba(57,255,20,0.9)' : 'rgba(100,100,100,0.3)';
     if (type === 'INPUT')  return isActive ? 'rgba(245,158,11,0.9)' : 'rgba(100,100,100,0.3)';
@@ -26,14 +26,26 @@ const GateShape = ({ type, isActive, computedValue }) => {
 
   if (type === 'INPUT') {
     return (
-      <div className="relative flex items-center justify-center w-full h-full transition-all duration-200"
+      <div className="relative flex flex-col items-center justify-center w-full h-full transition-all duration-200"
            style={{ filter: isActive ? `drop-shadow(0 0 8px ${glowColor})` : 'none' }}>
+        {label && (
+          <span className="absolute -top-6 text-[11px] font-extrabold tracking-widest pointer-events-none select-none"
+                style={{ 
+                  fontFamily: '"JetBrains Mono", monospace',
+                  color: 'var(--neon-amber)',
+                  textShadow: '0 0 10px rgba(245,158,11,0.5)',
+                  opacity: 0.8
+                }}>
+            {label}
+          </span>
+        )}
         <div className="input-toggle w-10 h-10 rounded-full flex items-center justify-center font-black text-lg transition-all duration-300 cursor-pointer"
              style={{
                background: isActive ? 'radial-gradient(circle, rgba(245,158,11,0.6), rgba(245,158,11,0.2))' : 'rgba(40,40,60,0.8)',
                border: `2px solid ${isActive ? c.stroke : 'rgba(255,255,255,0.15)'}`,
                boxShadow: isActive ? `0 0 16px rgba(245,158,11,0.7), inset 0 0 10px rgba(245,158,11,0.2)` : 'none',
                color: isActive ? '#fff' : 'rgba(255,255,255,0.3)',
+               fontFamily: '"JetBrains Mono", monospace'
              }}>
           {isActive ? '1' : '0'}
         </div>
@@ -87,7 +99,7 @@ const getPins = (type) => {
   }
 };
 
-const Gate = ({ id, type, x, y, state, onPinClick, onToggleState, computedValue, onDelete, isReadOnly }) => {
+const Gate = ({ id, type, x, y, state, onPinClick, onToggleState, computedValue, onDelete, isReadOnly, label }) => {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   const [{ isDragging }, dragRef] = useDrag(() => ({
@@ -107,12 +119,12 @@ const Gate = ({ id, type, x, y, state, onPinClick, onToggleState, computedValue,
 
   return (
     <div ref={dragRef}
-         className="absolute group transition-all duration-200 animate-scale-in"
+         className="absolute group gate-element transition-all duration-200 animate-scale-in"
          style={{
            left: x, top: y,
            width: cfg.w, height: cfg.h,
            opacity: isDragging ? 0.3 : 1,
-           cursor: 'grab',
+           cursor: isReadOnly ? 'default' : 'grab',
          }}>
 
       {/* Gate body */}
@@ -123,7 +135,7 @@ const Gate = ({ id, type, x, y, state, onPinClick, onToggleState, computedValue,
              boxShadow: glowStr,
            }}
            onClick={type === 'INPUT' ? (e) => { e.stopPropagation(); onToggleState && onToggleState(id); } : undefined}>
-        <GateShape type={type} isActive={isActive} computedValue={computedValue} />
+        <GateShape type={type} isActive={isActive} computedValue={computedValue} label={label} />
       </div>
 
       {/* Delete button — shows on hover */}
@@ -148,33 +160,33 @@ const Gate = ({ id, type, x, y, state, onPinClick, onToggleState, computedValue,
         </>
       )}
 
-      {/* Input pins (left side) */}
-      {!isReadOnly && pins.in > 0 && (
+      {/* Input pins (left side) — always visible, only clickable when not read-only */}
+      {pins.in > 0 && (
         <div className="absolute flex flex-col justify-around h-full py-1.5" style={{ left: -10, top: 0 }}>
           {Array.from({ length: pins.in }).map((_, i) => (
             <div key={`in-${i}`}
-                 className="w-3 h-3 rounded-full cursor-pointer transition-all duration-150 hover:scale-150"
+                 className={`w-3 h-3 rounded-full transition-all duration-150 ${!isReadOnly ? 'cursor-pointer hover:scale-150' : 'cursor-default'}`}
                  style={{
                    background: 'rgba(30,40,60,0.9)',
                    border: '1.5px solid rgba(0,212,255,0.4)',
                    boxShadow: '0 0 4px rgba(0,212,255,0.2)',
                  }}
-                 onClick={(e) => { e.stopPropagation(); onPinClick(id, `in-${i}`, 'input'); }}
+                 onClick={!isReadOnly ? (e) => { e.stopPropagation(); onPinClick(id, `in-${i}`, 'input'); } : undefined}
             />
           ))}
         </div>
       )}
 
-      {/* Output pin (right side) */}
-      {!isReadOnly && pins.out > 0 && (
+      {/* Output pin (right side) — always visible, only clickable when not read-only */}
+      {pins.out > 0 && (
         <div className="absolute flex flex-col justify-around h-full py-1.5" style={{ right: -10, top: 0 }}>
-          <div className="w-3 h-3 rounded-full cursor-pointer transition-all duration-150 hover:scale-150"
+          <div className={`w-3 h-3 rounded-full transition-all duration-150 ${!isReadOnly ? 'cursor-pointer hover:scale-150' : 'cursor-default'}`}
                style={{
                  background: isActive ? cfg.border : 'rgba(30,40,60,0.9)',
                  border: `1.5px solid ${isActive ? cfg.border : 'rgba(0,212,255,0.4)'}`,
                  boxShadow: isActive ? `0 0 6px ${cfg.border}` : '0 0 4px rgba(0,212,255,0.2)',
                }}
-               onClick={(e) => { e.stopPropagation(); onPinClick(id, 'out-0', 'output'); }}
+               onClick={!isReadOnly ? (e) => { e.stopPropagation(); onPinClick(id, 'out-0', 'output'); } : undefined}
           />
         </div>
       )}

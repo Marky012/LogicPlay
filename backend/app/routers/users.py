@@ -17,6 +17,10 @@ def create_user(user: schemas.UserCreate, db: Session = Depends(get_db)):
         raise HTTPException(status_code=400, detail="Username already registered")
     return crud.create_user(db=db, user=user)
 
+@router.get("/all", response_model=List[schemas.User])
+def read_all_students(db: Session = Depends(get_db)):
+    return crud.get_all_users(db)
+
 @router.get("/{username}", response_model=schemas.User)
 def read_user(username: str, db: Session = Depends(get_db)):
     db_user = crud.get_user_by_username(db, username=username)

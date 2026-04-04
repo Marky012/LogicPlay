@@ -1,7 +1,7 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useDrag } from 'react-dnd';
 
-/* SVG Logic Gate Symbols */
+/* ── SVG Logic Gate Symbols ─────────────────────────────── */
 const GateSVG = ({ type, color, size = 36 }) => {
   const s = size;
   const h = s * 0.6;
@@ -84,23 +84,22 @@ const GateSVG = ({ type, color, size = 36 }) => {
 };
 
 const GATE_CONFIGS = {
-  INPUT: { color: '#f59e0b', label: 'Input Switch', hint: 'Toggle HIGH/LOW signal', border: 'rgba(245,158,11,0.4)', bg: 'rgba(245,158,11,0.08)' },
-  OUTPUT: { color: '#ff3366', label: 'Output Probe', hint: 'Lights up when signal is HIGH', border: 'rgba(255,51,102,0.4)', bg: 'rgba(255,51,102,0.08)' },
-  AND: { color: '#3b82f6', label: 'AND Gate', hint: 'Out=1 only if ALL inputs are 1', border: 'rgba(59,130,246,0.4)', bg: 'rgba(59,130,246,0.08)' },
-  OR: { color: '#10b981', label: 'OR Gate', hint: 'Out=1 if ANY input is 1', border: 'rgba(16,185,129,0.4)', bg: 'rgba(16,185,129,0.08)' },
-  NOT: { color: '#bf5fff', label: 'NOT Gate', hint: 'Inverts the input signal', border: 'rgba(191,95,255,0.4)', bg: 'rgba(191,95,255,0.08)' },
-  NAND: { color: '#00ffea', label: 'NAND Gate', hint: 'NOT AND – universal gate', border: 'rgba(0,255,234,0.4)', bg: 'rgba(0,255,234,0.08)' },
-  NOR: { color: '#ff6b2b', label: 'NOR Gate', hint: 'NOT OR – universal gate', border: 'rgba(255,107,43,0.4)', bg: 'rgba(255,107,43,0.08)' },
-  XOR: { color: '#b4ff00', label: 'XOR Gate', hint: 'Out=1 if inputs are DIFFERENT', border: 'rgba(180,255,0,0.4)', bg: 'rgba(180,255,0,0.08)' },
+  INPUT: { color: '#f59e0b', label: 'Input', hint: 'Toggle HIGH/LOW signal', border: 'rgba(245,158,11,0.4)', bg: 'rgba(245,158,11,0.08)' },
+  OUTPUT: { color: '#ff3366', label: 'Output', hint: 'Lights up when signal is HIGH', border: 'rgba(255,51,102,0.4)', bg: 'rgba(255,51,102,0.08)' },
+  AND: { color: '#3b82f6', label: 'AND', hint: 'Out=1 only if ALL inputs are 1', border: 'rgba(59,130,246,0.4)', bg: 'rgba(59,130,246,0.08)' },
+  OR: { color: '#10b981', label: 'OR', hint: 'Out=1 if ANY input is 1', border: 'rgba(16,185,129,0.4)', bg: 'rgba(16,185,129,0.08)' },
+  NOT: { color: '#bf5fff', label: 'NOT', hint: 'Inverts the input signal', border: 'rgba(191,95,255,0.4)', bg: 'rgba(191,95,255,0.08)' },
+  NAND: { color: '#00ffea', label: 'NAND', hint: 'NOT AND – universal gate', border: 'rgba(0,255,234,0.4)', bg: 'rgba(0,255,234,0.08)' },
+  NOR: { color: '#ff6b2b', label: 'NOR', hint: 'NOT OR – universal gate', border: 'rgba(255,107,43,0.4)', bg: 'rgba(255,107,43,0.08)' },
+  XOR: { color: '#b4ff00', label: 'XOR', hint: 'Out=1 if inputs DIFFER', border: 'rgba(180,255,0,0.4)', bg: 'rgba(180,255,0,0.08)' },
 };
 
-const ToolbarGate = ({ type }) => {
-  const cfg = GATE_CONFIGS[type] || { color: '#888', label: type, hint: '', border: 'rgba(128,128,128,0.35)', bg: 'rgba(128,128,128,0.08)' };
-
+/* ── Desktop card (unchanged look) ──────────────────────── */
+const DesktopGateCard = ({ type, cfg }) => {
   const [{ isDragging }, dragRef] = useDrag(() => ({
     type: 'NEW_GATE',
     item: { type },
-    collect: (monitor) => ({ isDragging: !!monitor.isDragging() }),
+    collect: (m) => ({ isDragging: !!m.isDragging() }),
   }), [type]);
 
   return (
@@ -112,26 +111,18 @@ const ToolbarGate = ({ type }) => {
         border: `1px solid ${isDragging ? cfg.color : cfg.border}`,
         boxShadow: isDragging ? `0 0 12px ${cfg.border}` : 'none',
       }}>
-      {/* SVG icon */}
       <div className="flex-shrink-0 w-9 h-6 flex items-center justify-center">
         <GateSVG type={type} color={cfg.color} />
       </div>
-
-      {/* Label */}
       <div className="flex flex-col min-w-0">
-        <span className="text-sm font-semibold truncate" style={{ color: cfg.color }}>
-          {cfg.label}
-        </span>
+        <span className="text-sm font-semibold truncate" style={{ color: cfg.color }}>{cfg.label}</span>
         <span className="text-[10px] text-slate-500 truncate">{type}</span>
       </div>
-
-      {/* Drag handle dots */}
       <div className="ml-auto flex flex-col gap-0.5 opacity-30 group-hover:opacity-60">
         {[0, 1, 2].map(i => <div key={i} className="flex gap-0.5">{[0, 1].map(j => <div key={j} className="w-[3px] h-[3px] rounded-full bg-slate-400" />)}</div>)}
       </div>
-
-      {/* Tooltip */}
-      <div className="absolute left-full ml-3 top-1/2 -translate-y-1/2 px-2.5 py-1.5 rounded-lg text-xs text-white whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50"
+      {/* Tooltip — right on desktop */}
+      <div className="absolute left-full ml-3 top-1/2 -translate-y-1/2 px-2.5 py-1.5 rounded-lg text-xs whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50"
         style={{ background: 'rgba(13,26,45,0.97)', border: `1px solid ${cfg.border}`, color: cfg.color }}>
         {cfg.hint}
         <div className="absolute top-1/2 -translate-y-1/2 -left-1.5 w-2.5 h-2.5 rotate-45 border-b border-l"
@@ -141,6 +132,37 @@ const ToolbarGate = ({ type }) => {
   );
 };
 
+/* ── Mobile icon chip (tap-select) ──────────────────────── */
+const MobileGateChip = ({ type, cfg, isSelected, onSelect }) => {
+  const [{ isDragging }, dragRef] = useDrag(() => ({
+    type: 'NEW_GATE',
+    item: { type },
+    collect: (m) => ({ isDragging: !!m.isDragging() }),
+  }), [type]);
+
+  return (
+    <div
+      ref={dragRef}
+      className="flex flex-col items-center gap-1 py-2 px-1 rounded-xl cursor-grab select-none transition-all duration-150 active:scale-95"
+      style={{
+        opacity: isDragging ? 0.4 : 1,
+        background: isSelected ? cfg.bg : 'rgba(255,255,255,0.03)',
+        border: `1px solid ${isSelected ? cfg.color : 'rgba(255,255,255,0.06)'}`,
+        boxShadow: isSelected ? `0 0 10px ${cfg.border}` : 'none',
+      }}
+      onClick={() => onSelect(isSelected ? null : type)}
+    >
+      <div className="w-8 h-5 flex items-center justify-center">
+        <GateSVG type={type} color={cfg.color} size={28} />
+      </div>
+      <span className="text-[9px] font-bold uppercase tracking-wide" style={{ color: isSelected ? cfg.color : 'rgba(255,255,255,0.4)' }}>
+        {cfg.label}
+      </span>
+    </div>
+  );
+};
+
+/* ── Separator label used only on desktop ── */
 const SectionHeader = ({ label }) => (
   <div className="flex items-center gap-2 mt-4 mb-2">
     <div className="flex-1 h-px" style={{ background: 'rgba(0,212,255,0.15)' }} />
@@ -149,41 +171,78 @@ const SectionHeader = ({ label }) => (
   </div>
 );
 
+const ALL_TYPES = ['INPUT', 'OUTPUT', 'AND', 'OR', 'NOT', 'NAND', 'NOR', 'XOR'];
+
+/* ── Toolbar ─────────────────────────────────────────────── */
 const Toolbar = () => {
+  const [selected, setSelected] = useState(null);
+  const selCfg = selected ? GATE_CONFIGS[selected] : null;
+
   return (
     <div className="w-full flex flex-col gap-1 flex-shrink-0 pr-1 pb-2 lg:pb-4">
-      {/* Gate list — horizontal scroll on mobile, vertical on desktop */}
-      <div className="flex flex-row lg:flex-col gap-2 overflow-x-auto lg:overflow-x-visible pb-1 lg:pb-0">
-        <h2 className="hidden lg:block text-xs font-black uppercase tracking-widest mb-1 flex-shrink-0" style={{ color: 'var(--neon-blue)' }}>
+
+      {/* ── MOBILE: 4-column chip grid + info strip ── */}
+      <div className="lg:hidden flex flex-col gap-2">
+        {/* 4×2 grid — no scrolling needed */}
+        <div className="grid grid-cols-4 gap-1.5 px-0.5">
+          {ALL_TYPES.map(type => (
+            <MobileGateChip
+              key={type}
+              type={type}
+              cfg={GATE_CONFIGS[type]}
+              isSelected={selected === type}
+              onSelect={setSelected}
+            />
+          ))}
+        </div>
+
+        {/* Info strip — appears when a chip is tapped */}
+        <div
+          className="overflow-hidden transition-all duration-300"
+          style={{ maxHeight: selCfg ? '72px' : '0px', opacity: selCfg ? 1 : 0 }}
+        >
+          {selCfg && (
+            <div className="flex items-center gap-3 px-3 py-2.5 rounded-xl"
+              style={{ background: selCfg.bg, border: `1px solid ${selCfg.color}55` }}>
+              <div className="w-9 h-6 flex-shrink-0 flex items-center justify-center">
+                <GateSVG type={selected} color={selCfg.color} size={32} />
+              </div>
+              <div className="flex flex-col min-w-0">
+                <span className="text-xs font-black" style={{ color: selCfg.color }}>{selCfg.label} <span className="opacity-50 font-mono">({selected})</span></span>
+                <span className="text-[11px] text-slate-400 leading-snug">{selCfg.hint}</span>
+              </div>
+              <span className="text-[9px] text-slate-500 ml-auto flex-shrink-0">drag to canvas →</span>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* ── DESKTOP: vertical card list ── */}
+      <div className="hidden lg:flex flex-col gap-2">
+        <h2 className="text-xs font-black uppercase tracking-widest mb-1 flex-shrink-0" style={{ color: 'var(--neon-blue)' }}>
           Components
         </h2>
 
-        <div className="flex flex-row lg:flex-col gap-2 flex-shrink-0 lg:flex-shrink">
-          <SectionHeader label="I/O" />
-          <ToolbarGate type="INPUT" />
-          <ToolbarGate type="OUTPUT" />
-        </div>
+        <SectionHeader label="I/O" />
+        <DesktopGateCard type="INPUT" cfg={GATE_CONFIGS.INPUT} />
+        <DesktopGateCard type="OUTPUT" cfg={GATE_CONFIGS.OUTPUT} />
 
-        <div className="flex flex-row lg:flex-col gap-2 flex-shrink-0 lg:flex-shrink">
-          <SectionHeader label="Basic" />
-          <ToolbarGate type="AND" />
-          <ToolbarGate type="OR" />
-          <ToolbarGate type="NOT" />
-        </div>
+        <SectionHeader label="Basic" />
+        <DesktopGateCard type="AND" cfg={GATE_CONFIGS.AND} />
+        <DesktopGateCard type="OR" cfg={GATE_CONFIGS.OR} />
+        <DesktopGateCard type="NOT" cfg={GATE_CONFIGS.NOT} />
 
-        <div className="flex flex-row lg:flex-col gap-2 flex-shrink-0 lg:flex-shrink">
-          <SectionHeader label="Advanced" />
-          <ToolbarGate type="NAND" />
-          <ToolbarGate type="NOR" />
-          <ToolbarGate type="XOR" />
+        <SectionHeader label="Advanced" />
+        <DesktopGateCard type="NAND" cfg={GATE_CONFIGS.NAND} />
+        <DesktopGateCard type="NOR" cfg={GATE_CONFIGS.NOR} />
+        <DesktopGateCard type="XOR" cfg={GATE_CONFIGS.XOR} />
+
+        <div className="mt-2 mx-1 px-3 py-2 rounded-lg text-[10px] text-slate-500 leading-relaxed"
+          style={{ background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.05)' }}>
+          💡 Drag gates to canvas. Click pins to wire them.
         </div>
       </div>
 
-      {/* Tip */}
-      <div className="hidden lg:block mt-2 mx-1 px-3 py-2 rounded-lg text-[10px] text-slate-500 leading-relaxed"
-        style={{ background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.05)' }}>
-        💡 Drag gates to canvas. Click pins to wire them.
-      </div>
     </div>
   );
 };

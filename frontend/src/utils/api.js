@@ -1,11 +1,19 @@
 import axios from 'axios';
 
+// Use window.location.hostname so that if you connect via a mobile device (e.g. 192.168.1.x),
+// the frontend will try to hit the backend on that same exact IP instead of resolving back to the phone's 'localhost'
+const backendUrl = window.location.hostname === 'localhost' 
+  ? 'http://localhost:8000' 
+  : `http://${window.location.hostname}:8000`;
+
 const api = axios.create({
-  baseURL: 'http://localhost:8000',
+  baseURL: backendUrl,
   headers: {
     'Content-Type': 'application/json',
   },
 });
+
+// ─── Student Auth ────────────────────────────────────────────────
 
 export const register = async (username) => {
   const response = await api.post('/users/', { username });
@@ -16,6 +24,25 @@ export const getUser = async (username) => {
   const response = await api.get(`/users/${username}`);
   return response.data;
 };
+
+export const getAllStudents = async () => {
+  const response = await api.get('/users/all');
+  return response.data;
+};
+
+// ─── Teacher Auth ────────────────────────────────────────────────
+
+export const teacherRegister = async (username, password) => {
+  const response = await api.post('/auth/teacher/register', { username, password });
+  return response.data;
+};
+
+export const teacherLogin = async (username, password) => {
+  const response = await api.post('/auth/teacher/login', { username, password });
+  return response.data;
+};
+
+// ─── Circuits ────────────────────────────────────────────────────
 
 import { saveCircuitOffline } from './offlineSync';
 
@@ -47,8 +74,102 @@ export const gradeCircuit = async (circuitData) => {
   return response.data;
 };
 
+// ─── Challenges ───────────────────────────────────────────────────
+
 export const getChallenges = async () => {
   const response = await api.get('/challenges/');
+  return response.data;
+};
+
+// ─── Classrooms ───────────────────────────────────────────────────
+
+export const createClassroom = async (teacherUsername, name) => {
+  const response = await api.post(`/classrooms/${encodeURIComponent(teacherUsername)}`, { name });
+  return response.data;
+};
+
+export const getTeacherClassrooms = async (teacherUsername) => {
+  const response = await api.get(`/classrooms/teacher/${encodeURIComponent(teacherUsername)}`);
+  return response.data;
+};
+
+export const joinClassroom = async (joinCode, studentUsername) => {
+  const response = await api.post('/classrooms/join', {
+    join_code: joinCode,
+    student_username: studentUsername
+  });
+  return response.data;
+};
+
+export const getStudentClassrooms = async (studentUsername) => {
+  const response = await api.get(`/classrooms/student/${encodeURIComponent(studentUsername)}`);
+  return response.data;
+};
+
+export const getClassroomStudents = async (classroomId) => {
+  const response = await api.get(`/classrooms/${classroomId}/students`);
+  return response.data;
+};
+
+// ─── Assignments ──────────────────────────────────────────────────
+
+export const getAssignments = async (studentUsername) => {
+  const url = studentUsername ? `/assignments/student/${encodeURIComponent(studentUsername)}` : '/assignments/';
+  const response = await api.get(url);
+  return response.data;
+};
+
+export const getAssignmentsByTeacher = async (username) => {
+  const response = await api.get(`/assignments/teacher/${username}`);
+  return response.data;
+};
+
+export const createAssignment = async (data, teacherUsername) => {
+  const response = await api.post(`/assignments/?teacher_username=${encodeURIComponent(teacherUsername)}`, data);
+  return response.data;
+};
+
+export const updateAssignment = async (id, data, teacherUsername) => {
+  const response = await api.patch(
+    `/assignments/${id}?teacher_username=${encodeURIComponent(teacherUsername)}`,
+    data
+  );
+  return response.data;
+};
+
+export const deleteAssignment = async (id, teacherUsername) => {
+  const response = await api.delete(
+    `/assignments/${id}?teacher_username=${encodeURIComponent(teacherUsername)}`
+  );
+  return response.data;
+};
+
+// ─── Submissions ──────────────────────────────────────────────────
+
+export const submitCircuit = async ({ assignmentId, studentUsername, circuitData }) => {
+  const response = await api.post('/submissions/', {
+    assignment_id: assignmentId,
+    student_username: studentUsername,
+    circuit_data: circuitData,
+  });
+  return response.data;
+};
+
+export const getSubmissionsByAssignment = async (assignmentId) => {
+  const response = await api.get(`/submissions/assignment/${assignmentId}`);
+  return response.data;
+};
+
+export const getSubmissionsByStudent = async (username) => {
+  const response = await api.get(`/submissions/student/${username}`);
+  return response.data;
+};
+
+export const gradeSubmission = async (submissionId, { teacherScore, teacherFeedback }) => {
+  const response = await api.patch(`/submissions/${submissionId}/grade`, {
+    teacher_score: teacherScore,
+    teacher_feedback: teacherFeedback,
+  });
   return response.data;
 };
 

@@ -1,11 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useContext } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { useContext } from 'react';
 import { AuthContext } from '../context/AuthContext';
 import ConfirmModal from './ConfirmModal';
+import logo from '../assets/L0g1cPLAYicon001.png';
 
 const NavBar = ({ profileData }) => {
-  const { user, logout } = useContext(AuthContext);
+  const { user, logout, isTeacher } = useContext(AuthContext);
   const location = useLocation();
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
 
@@ -13,65 +13,77 @@ const NavBar = ({ profileData }) => {
     ? user.username.slice(0, 2).toUpperCase()
     : '??';
 
-  const navLinks = [
+  const studentLinks = [
     { to: '/playground', label: '🔧 Playground' },
     { to: '/profile',    label: '👤 Profile' },
   ];
 
+  const teacherLinks = [
+    { to: '/teacher', label: '📋 Dashboard' },
+  ];
+
+  const navLinks = isTeacher ? teacherLinks : studentLinks;
+
   return (
     <>
-      <header className="relative z-20 flex items-center justify-between px-5 py-3 border-b"
-              style={{ background: 'rgba(6,11,20,0.85)', backdropFilter: 'blur(12px)', borderColor: 'rgba(0,212,255,0.1)' }}>
+      <header className="relative z-20 flex items-center justify-between px-3 sm:px-5 py-2.5 border-b"
+              style={{
+                background: isTeacher ? 'rgba(15,8,30,0.94)' : 'rgba(6,11,20,0.92)',
+                backdropFilter: 'blur(12px)',
+                borderColor: isTeacher ? 'rgba(124,58,237,0.2)' : 'rgba(0,212,255,0.1)',
+              }}>
 
         {/* ── Logo ── */}
-        <Link to="/playground" className="flex items-center gap-2 group">
-          <span className="text-xl select-none" style={{ textShadow: '0 0 12px rgba(0,212,255,0.8)' }}>⚡</span>
-          <span className="text-lg font-black tracking-tight text-gradient-blue glow-text-blue">
-            LogicPlay
-          </span>
+        <Link to={isTeacher ? '/teacher' : '/playground'} className="flex items-center gap-1.5 group flex-shrink-0">
+          <img
+            src={logo}
+            alt="LogicPlay Logo"
+            className="h-8 sm:h-10 object-contain transition-transform duration-300 hover:scale-105"
+            style={{ filter: isTeacher ? 'drop-shadow(0 0 12px rgba(124,58,237,0.7))' : 'drop-shadow(0 0 12px rgba(0,212,255,0.6))' }}
+          />
         </Link>
 
         {/* ── Nav links ── */}
-        <nav className="hidden sm:flex items-center gap-1">
+        <nav className="flex items-center gap-1">
           {navLinks.map(({ to, label }) => {
             const active = location.pathname === to;
             return (
               <Link key={to} to={to}
-                    className="px-4 py-1.5 rounded-lg text-sm font-semibold transition-all duration-200"
+                    className="flex items-center gap-1 px-2.5 sm:px-4 py-1.5 rounded-lg text-xs sm:text-sm font-semibold transition-all duration-200"
                     style={{
-                      color: active ? 'var(--neon-blue)' : 'rgba(255,255,255,0.5)',
-                      background: active ? 'rgba(0,212,255,0.1)' : 'transparent',
-                      border: `1px solid ${active ? 'rgba(0,212,255,0.3)' : 'transparent'}`,
+                      color: active ? (isTeacher ? '#a78bfa' : 'var(--neon-blue)') : 'rgba(255,255,255,0.5)',
+                      background: active ? (isTeacher ? 'rgba(124,58,237,0.12)' : 'rgba(0,212,255,0.1)') : 'transparent',
+                      border: `1px solid ${active ? (isTeacher ? 'rgba(124,58,237,0.35)' : 'rgba(0,212,255,0.3)') : 'transparent'}`,
                     }}>
-                {label}
+                <span>{label.split(' ')[0]}</span>
+                <span className="hidden sm:inline">{label.split(' ').slice(1).join(' ')}</span>
               </Link>
             );
           })}
         </nav>
 
-        {/* ── Right: Gamification + User ── */}
-        <div className="flex items-center gap-3">
-          {profileData && (
-            <div className="hidden md:flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold"
-                 style={{ background: 'rgba(57,255,20,0.1)', border: '1px solid rgba(57,255,20,0.25)', color: 'var(--neon-green)' }}>
-              <span>⭐ Lv {profileData.level}</span>
-              <span className="text-slate-500">|</span>
-              <span>{profileData.points} XP</span>
-            </div>
-          )}
-
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold select-none"
-                 style={{ background: 'linear-gradient(135deg, #0ea5e9, #bf5fff)', boxShadow: '0 0 10px rgba(0,212,255,0.4)' }}>
+        {/* ── Right: User info + role badge ── */}
+        <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5">
+            <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center text-xs font-bold select-none"
+                 style={{
+                   background: isTeacher
+                     ? 'linear-gradient(135deg, #5b21b6, #7c3aed)'
+                     : 'linear-gradient(135deg, #0ea5e9, #bf5fff)',
+                   boxShadow: isTeacher ? '0 0 10px rgba(124,58,237,0.5)' : '0 0 10px rgba(0,212,255,0.4)',
+                 }}>
               {initials}
             </div>
-            <span className="hidden sm:block text-sm text-slate-300 font-medium">
-              {user?.username}
-            </span>
+            <div className="hidden sm:flex flex-col">
+              <span className="text-sm text-slate-300 font-medium max-w-[80px] truncate">{user?.username}</span>
+              {isTeacher && (
+                <span className="text-[9px] font-black uppercase tracking-widest" style={{ color: '#a78bfa' }}>Instructor</span>
+              )}
+            </div>
           </div>
 
           {/* Logout */}
-          <button onClick={() => setShowLogoutConfirm(true)} className="btn-ghost text-xs px-3 py-1.5">
+          <button onClick={() => setShowLogoutConfirm(true)} className="btn-ghost text-xs px-2 sm:px-3 py-1.5">
             Logout
           </button>
         </div>
@@ -80,7 +92,7 @@ const NavBar = ({ profileData }) => {
       <ConfirmModal
         isOpen={showLogoutConfirm}
         title="Log out?"
-        message="You'll need to enter your username again to play."
+        message={isTeacher ? "You'll be signed out of the instructor portal." : "You'll need to enter your username again to play."}
         confirmLabel="Log out"
         cancelLabel="Stay"
         danger

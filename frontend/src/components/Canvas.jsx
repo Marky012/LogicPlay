@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useDrop } from 'react-dnd';
 import Gate from './Gate';
+import ConfirmModal from './ConfirmModal';
 import p5 from 'p5';
 import { sketch } from '../utils/animation';
 
@@ -45,7 +46,16 @@ const Canvas = ({ gates, setGates, wires, setWires, onGateStateToggle, activeWir
   const [scale, setScale] = useState(1);
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const [isPanning, setIsPanning] = useState(false);
+  const [wireToDelete, setWireToDelete] = useState(null);
+  const [showOutputToOutputModal, setShowOutputToOutputModal] = useState(false);
+  const [showInputToInputModal, setShowInputToInputModal] = useState(false);
   const panStartRef = useRef({ x: 0, y: 0 });
+
+  // Keep live refs so event handlers always read current values (avoids stale closures)
+  const scaleRef = useRef(scale);
+  const panRef   = useRef(pan);
+  useEffect(() => { scaleRef.current = scale; }, [scale]);
+  useEffect(() => { panRef.current   = pan;   }, [pan]);
 
   useEffect(() => {
     if (resetViewTrigger > 0) {
@@ -71,46 +81,49 @@ const Canvas = ({ gates, setGates, wires, setWires, onGateStateToggle, activeWir
 
     const handleWheel = (e) => {
       e.preventDefault();
+      const currentScale = scaleRef.current;
+      const currentPan   = panRef.current;
       const zoomSensitivity = 0.002;
-      const delta = -e.deltaY * zoomSensitivity;
-      const newScale = Math.min(Math.max(0.2, scale + delta), 3);
-      
-      const rect = canvas.getBoundingClientRect();
+      const delta    = -e.deltaY * zoomSensitivity;
+      const newScale = Math.min(Math.max(0.2, currentScale + delta), 3);
+
+      const rect   = canvas.getBoundingClientRect();
       const mouseX = e.clientX - rect.left;
       const mouseY = e.clientY - rect.top;
 
-      const ratio = newScale / scale;
-      const newPanX = mouseX - (mouseX - pan.x) * ratio;
-      const newPanY = mouseY - (mouseY - pan.y) * ratio;
+      const ratio   = newScale / currentScale;
+      const newPanX = mouseX - (mouseX - currentPan.x) * ratio;
+      const newPanY = mouseY - (mouseY - currentPan.y) * ratio;
 
       setScale(newScale);
       setPan({ x: newPanX, y: newPanY });
     };
 
     const handleTouchStart = (e) => {
-      if (e.target !== canvas) return;
+      // Only initiate pan/pinch from the canvas background, not from gate elements
+      const isGateElement = e.target.closest && e.target.closest('.gate-element');
       const st = touchStateRef.current;
 
       if (e.touches.length === 2) {
         e.preventDefault();
         st.isPinch = true;
         st.isTouchPan = false;
-        
+
         const t1 = e.touches[0];
         const t2 = e.touches[1];
         st.initialPinchDist = Math.hypot(t1.clientX - t2.clientX, t1.clientY - t2.clientY);
-        st.initialScale = scale;
-        
+        st.initialScale = scaleRef.current;
+
         const rect = canvas.getBoundingClientRect();
         st.pinchCenter = {
           x: (t1.clientX + t2.clientX) / 2 - rect.left,
-          y: (t1.clientY + t2.clientY) / 2 - rect.top
+          y: (t1.clientY + t2.clientY) / 2 - rect.top,
         };
-        st.initialPan = { ...pan };
-      } else if (e.touches.length === 1) {
-        e.preventDefault();
+        st.initialPan = { ...panRef.current };
+      } else if (e.touches.length === 1 && !isGateElement) {
         st.isTouchPan = true;
-        st.touchPanStart = { x: e.touches[0].clientX - pan.x, y: e.touches[0].clientY - pan.y };
+        const currentPan = panRef.current;
+        st.touchPanStart = { x: e.touches[0].clientX - currentPan.x, y: e.touches[0].clientY - currentPan.y };
       }
     };
 
@@ -121,21 +134,21 @@ const Canvas = ({ gates, setGates, wires, setWires, onGateStateToggle, activeWir
         const t1 = e.touches[0];
         const t2 = e.touches[1];
         const currentDist = Math.hypot(t1.clientX - t2.clientX, t1.clientY - t2.clientY);
-        
+
         const zoomFactor = currentDist / st.initialPinchDist;
-        const newScale = Math.min(Math.max(0.2, st.initialScale * zoomFactor), 3);
-        
-        const ratio = newScale / st.initialScale;
+        const newScale   = Math.min(Math.max(0.2, st.initialScale * zoomFactor), 3);
+
+        const ratio   = newScale / st.initialScale;
         const newPanX = st.pinchCenter.x - (st.pinchCenter.x - st.initialPan.x) * ratio;
         const newPanY = st.pinchCenter.y - (st.pinchCenter.y - st.initialPan.y) * ratio;
-        
+
         setScale(newScale);
         setPan({ x: newPanX, y: newPanY });
       } else if (st.isTouchPan && e.touches.length === 1) {
         e.preventDefault();
         setPan({
           x: e.touches[0].clientX - st.touchPanStart.x,
-          y: e.touches[0].clientY - st.touchPanStart.y
+          y: e.touches[0].clientY - st.touchPanStart.y,
         });
       }
     };
@@ -159,13 +172,18 @@ const Canvas = ({ gates, setGates, wires, setWires, onGateStateToggle, activeWir
       canvas.removeEventListener('touchend', handleTouchEnd);
       canvas.removeEventListener('touchcancel', handleTouchEnd);
     };
-  }, [scale, pan]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // runs once; reads live values via scaleRef/panRef
 
   const handleMouseDown = (e) => {
-    const isInteractive = e.target.closest('button') || e.target.closest('.input-toggle');
-    if (e.target === canvasRef.current || (isReadOnly && !isInteractive)) {
+    // Only start panning when clicking the bare canvas background (not gates, pins, or buttons)
+    const isInteractive = e.target.closest('button') ||
+                          e.target.closest('.input-toggle') ||
+                          e.target.closest('.gate-element') ||
+                          e.target.closest('.wire-element');
+    if (!isInteractive) {
       setIsPanning(true);
-      panStartRef.current = { x: e.clientX - pan.x, y: e.clientY - pan.y };
+      panStartRef.current = { x: e.clientX - panRef.current.x, y: e.clientY - panRef.current.y };
     }
   };
 
@@ -239,9 +257,39 @@ const Canvas = ({ gates, setGates, wires, setWires, onGateStateToggle, activeWir
     if (!drawingWire) {
       setDrawingWire({ gateId, pinId, pinType });
     } else {
-      if (drawingWire.pinType !== pinType && drawingWire.gateId !== gateId) {
-        const fromPin = drawingWire.pinType === 'output' ? drawingWire : { gateId, pinId, pinType };
-        const toPin   = drawingWire.pinType === 'input'  ? drawingWire : { gateId, pinId, pinType };
+      // Prevent connecting a gate to itself
+      if (drawingWire.gateId === gateId) {
+        setDrawingWire(null);
+        return;
+      }
+
+      // Both pins are outputs → show output-to-output warning modal
+      if (drawingWire.pinType === 'output' && pinType === 'output') {
+        setShowOutputToOutputModal(true);
+        setDrawingWire(null);
+        return;
+      }
+
+      // Both pins are inputs → show input-to-input error modal
+      if (drawingWire.pinType === 'input' && pinType === 'input') {
+        setShowInputToInputModal(true);
+        setDrawingWire(null);
+        return;
+      }
+
+      // Valid connection: one output → one input
+      const fromPin = drawingWire.pinType === 'output' ? drawingWire : { gateId, pinId, pinType };
+      const toPin   = drawingWire.pinType === 'input'  ? drawingWire : { gateId, pinId, pinType };
+
+      // Toggle logic: if wire already exists, remove it; else add it.
+      const existingWire = wires.find(w =>
+        w.fromGateId === fromPin.gateId && w.fromPin === fromPin.pinId &&
+        w.toGateId === toPin.gateId && w.toPin === toPin.pinId
+      );
+
+      if (existingWire) {
+        setWires(prev => prev.filter(w => w.id !== existingWire.id));
+      } else {
         setWires(prev => [...prev, {
           id: `wire_${Date.now()}`,
           fromGateId: fromPin.gateId, fromPin: fromPin.pinId,
@@ -277,12 +325,12 @@ const Canvas = ({ gates, setGates, wires, setWires, onGateStateToggle, activeWir
     const glow   = isHigh ? '0 0 6px #39ff14, 0 0 14px rgba(57,255,20,0.4)' : 'none';
 
     return (
-      <g key={wire.id} className="cursor-pointer group/wire">
+      <g key={wire.id} className="cursor-pointer group/wire wire-element">
         {/* Hit-area (invisible thick path for easier clicking) */}
         <path
           d={`M ${x1} ${y1} C ${x1+50} ${y1}, ${x2-50} ${y2}, ${x2} ${y2}`}
           fill="transparent" stroke="transparent" strokeWidth="12"
-          onClick={() => setWires(prev => prev.filter(w => w.id !== wire.id))}
+          onClick={() => !isReadOnly && setWireToDelete(wire.id)}
         />
         {/* Visible wire */}
         <path
@@ -328,17 +376,26 @@ const Canvas = ({ gates, setGates, wires, setWires, onGateStateToggle, activeWir
       <div className="absolute top-0 left-0 w-full h-full pointer-events-none z-30"
            style={{ transform: `translate(${pan.x}px, ${pan.y}px) scale(${scale})`, transformOrigin: '0 0' }}>
         <div className="pointer-events-auto w-full h-full relative">
-          {gates.map(gate => (
-            <Gate
-              key={gate.id}
-              {...gate}
-              onPinClick={handlePinClick}
-              onToggleState={onGateStateToggle}
-              onDelete={handleDeleteGate}
-              computedValue={computedGateValues ? computedGateValues[gate.id] : null}
-              isReadOnly={isReadOnly}
-            />
-          ))}
+          {gates.map(gate => {
+            let label = null;
+            if (gate.type === 'INPUT') {
+              const inputGates = gates.filter(g => g.type === 'INPUT');
+              const idx = inputGates.findIndex(g => g.id === gate.id);
+              label = `I${idx + 1}`;
+            }
+            return (
+              <Gate
+                key={gate.id}
+                {...gate}
+                label={label}
+                onPinClick={handlePinClick}
+                onToggleState={onGateStateToggle}
+                onDelete={handleDeleteGate}
+                computedValue={computedGateValues ? computedGateValues[gate.id] : null}
+                isReadOnly={isReadOnly}
+              />
+            );
+          })}
         </div>
       </div>
 
@@ -362,7 +419,7 @@ const Canvas = ({ gates, setGates, wires, setWires, onGateStateToggle, activeWir
 
       {/* Reset View Button */}
       <button
-        className="absolute bottom-4 right-4 flex items-center justify-center px-5 py-2.5 rounded-xl transition-all duration-200 z-50 group hover:-translate-y-0.5 hover:shadow-lg"
+        className="absolute bottom-20 lg:bottom-4 right-4 flex items-center justify-center px-5 py-2.5 rounded-xl transition-all duration-200 z-50 group hover:-translate-y-0.5 hover:shadow-lg"
         style={{
           background: 'rgba(13,26,45,0.85)',
           backdropFilter: 'blur(8px)',
@@ -376,6 +433,44 @@ const Canvas = ({ gates, setGates, wires, setWires, onGateStateToggle, activeWir
       >
         <span className="text-xs font-black uppercase tracking-widest">Reset View</span>
       </button>
+
+      {/* Wire Deletion Confirm Modal */}
+      <ConfirmModal
+        isOpen={!!wireToDelete}
+        title="Delete Connection?"
+        message="Are you sure you want to remove this wire?"
+        confirmLabel="Delete"
+        danger
+        onConfirm={() => {
+          setWires(prev => prev.filter(w => w.id !== wireToDelete));
+          setWireToDelete(null);
+        }}
+        onCancel={() => setWireToDelete(null)}
+      />
+
+      {/* Output-to-Output Connection Warning */}
+      <ConfirmModal
+        isOpen={showOutputToOutputModal}
+        title="Cannot Connect Outputs"
+        message="You cannot connect an output pin directly to another output pin. Connect an output pin to an input pin of another gate instead."
+        confirmLabel="Got it"
+        hideCancel
+        danger={false}
+        onConfirm={() => setShowOutputToOutputModal(false)}
+        onCancel={() => setShowOutputToOutputModal(false)}
+      />
+
+      {/* Input-to-Input Connection Error */}
+      <ConfirmModal
+        isOpen={showInputToInputModal}
+        title="Cannot Connect Input to Input"
+        message="You cannot connect an input pin to another input pin. Connect an output pin of a gate to this input pin instead."
+        confirmLabel="Got it"
+        hideCancel
+        danger
+        onConfirm={() => setShowInputToInputModal(false)}
+        onCancel={() => setShowInputToInputModal(false)}
+      />
     </div>
   );
 };

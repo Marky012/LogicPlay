@@ -1,18 +1,18 @@
 import React, { useState, useEffect, useRef } from 'react';
 
 const RANKS = [
-  { min: 0,    max: 2,  label: 'Novice',     color: '#94a3b8', glow: 'rgba(148,163,184,0.4)' },
-  { min: 3,    max: 5,  label: 'Apprentice', color: '#10b981', glow: 'rgba(16,185,129,0.4)' },
-  { min: 6,    max: 9,  label: 'Engineer',   color: '#3b82f6', glow: 'rgba(59,130,246,0.4)' },
-  { min: 10,   max: 14, label: 'Expert',     color: '#8b5cf6', glow: 'rgba(139,92,246,0.4)' },
-  { min: 15,   max: 99, label: 'Master',     color: '#f59e0b', glow: 'rgba(245,158,11,0.4)' },
+  { min: 0, max: 2, label: 'Novice', color: '#94a3b8', glow: 'rgba(148,163,184,0.4)' },
+  { min: 3, max: 5, label: 'Apprentice', color: '#10b981', glow: 'rgba(16,185,129,0.4)' },
+  { min: 6, max: 9, label: 'Engineer', color: '#3b82f6', glow: 'rgba(59,130,246,0.4)' },
+  { min: 10, max: 14, label: 'Expert', color: '#8b5cf6', glow: 'rgba(139,92,246,0.4)' },
+  { min: 15, max: 99, label: 'Master', color: '#f59e0b', glow: 'rgba(245,158,11,0.4)' },
 ];
 
 const BADGE_ICONS = {
-  'First Circuit': '🔵',
-  'Perfect Score': '💯',
-  'Gates Master':  '🌟',
-  'Speed Demon':   '⚡',
+  'First Circuit': <svg width="1em" height="1em" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="10" /></svg>,
+  'Perfect Score': <svg width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="8" r="7" /><polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88" /></svg>,
+  'Gates Master': <svg width="1em" height="1em" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" /></svg>,
+  'Speed Demon': <svg width="1em" height="1em" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" /></svg>,
 };
 
 const getRank = (level) => RANKS.find(r => level >= r.min && level <= r.max) || RANKS[0];
@@ -38,13 +38,13 @@ const Gamification = ({ points, level, badges, onXpGain }) => {
 
   return (
     <div className="relative flex items-center gap-4 px-5 py-2.5 rounded-2xl"
-         style={{ background: 'rgba(13,26,45,0.8)', border: '1px solid rgba(0,212,255,0.15)', backdropFilter: 'blur(8px)' }}>
+      style={{ background: 'rgba(13,26,45,0.8)', border: '1px solid rgba(0,212,255,0.15)', backdropFilter: 'blur(8px)' }}>
 
       {/* ── XP Pop animations ── */}
       {xpPops.map(pop => (
         <div key={pop.id}
-             className="absolute -top-8 left-1/2 -translate-x-1/2 text-sm font-black pointer-events-none animate-xp-pop"
-             style={{ color: 'var(--neon-green)', textShadow: '0 0 8px rgba(57,255,20,0.8)', zIndex: 99 }}>
+          className="absolute -top-8 left-1/2 -translate-x-1/2 text-sm font-black pointer-events-none animate-xp-pop"
+          style={{ color: 'var(--neon-green)', textShadow: '0 0 8px rgba(57,255,20,0.8)', zIndex: 99 }}>
           +{pop.diff} XP
         </div>
       ))}
@@ -52,17 +52,17 @@ const Gamification = ({ points, level, badges, onXpGain }) => {
       {/* ── Level badge ── */}
       <div className="flex flex-col items-center">
         <div className="relative w-12 h-12 flex items-center justify-center rounded-xl font-black text-xl"
-             style={{
-               background: `linear-gradient(135deg, ${rank.color}22, ${rank.color}44)`,
-               border: `2px solid ${rank.color}`,
-               boxShadow: `0 0 14px ${rank.glow}`,
-               color: rank.color,
-             }}>
+          style={{
+            background: `linear-gradient(135deg, ${rank.color}22, ${rank.color}44)`,
+            border: `2px solid ${rank.color}`,
+            boxShadow: `0 0 14px ${rank.glow}`,
+            color: rank.color,
+          }}>
           <span className="text-[10px] tracking-tighter opacity-70 mr-0.5 font-bold">Lv</span>
           {level}
         </div>
         <span className="text-[9px] font-bold mt-1 uppercase tracking-widest"
-              style={{ color: rank.color }}>
+          style={{ color: rank.color }}>
           {rank.label}
         </span>
       </div>
@@ -84,13 +84,13 @@ const Gamification = ({ points, level, badges, onXpGain }) => {
         {badges && badges.length > 0 ? (
           badges.slice(0, 4).map((badge, i) => (
             <div key={i}
-                 className="relative group w-7 h-7 rounded-lg flex items-center justify-center text-sm cursor-default"
-                 style={{ background: 'rgba(245,158,11,0.15)', border: '1px solid rgba(245,158,11,0.35)' }}
-                 title={badge}>
-              {BADGE_ICONS[badge] || '🏅'}
+              className="relative group w-7 h-7 rounded-lg flex items-center justify-center text-sm cursor-default"
+              style={{ background: 'rgba(245,158,11,0.15)', border: '1px solid rgba(245,158,11,0.35)' }}
+              title={badge}>
+              {BADGE_ICONS[badge] || <svg width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6" /><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18" /><path d="M4 22h16" /><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22" /><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22" /><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z" /></svg>}
               {/* Tooltip */}
               <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 px-2 py-0.5 rounded text-[10px] text-white whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"
-                   style={{ background: 'rgba(13,26,45,0.95)', border: '1px solid rgba(245,158,11,0.3)' }}>
+                style={{ background: 'rgba(13,26,45,0.95)', border: '1px solid rgba(245,158,11,0.3)' }}>
                 {badge}
               </div>
             </div>

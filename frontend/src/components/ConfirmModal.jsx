@@ -1,4 +1,5 @@
 import React, { useEffect } from 'react';
+import { createPortal } from 'react-dom';
 
 /**
  * Reusable neon-styled confirmation modal.
@@ -22,6 +23,7 @@ const ConfirmModal = ({
   onConfirm,
   onCancel,
   danger = false,
+  hideCancel = false,
 }) => {
   // Close on Escape
   useEffect(() => {
@@ -33,7 +35,7 @@ const ConfirmModal = ({
 
   if (!isOpen) return null;
 
-  return (
+  return createPortal(
     <div
       className="fixed inset-0 z-[9999] flex items-center justify-center animate-fade-in"
       style={{ background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(6px)' }}
@@ -69,23 +71,25 @@ const ConfirmModal = ({
 
         {/* Actions */}
         <div className="flex gap-3 mt-1">
-          <button
-            onClick={onCancel}
-            className="btn-ghost flex-1 py-2.5"
-          >
-            {cancelLabel}
-          </button>
+          {!hideCancel && (
+            <button
+              onClick={onCancel}
+              className="btn-ghost flex-1 py-2.5"
+            >
+              {cancelLabel}
+            </button>
+          )}
           <button
             onClick={onConfirm}
-            className={`flex-1 py-2.5 rounded-lg font-bold text-sm transition-all duration-200 text-white ${
-              danger ? 'btn-danger' : 'btn-primary'
-            }`}
+            className={`flex-1 py-2.5 rounded-lg font-bold text-sm transition-all duration-200 text-white ${danger ? 'btn-danger' : 'btn-primary'
+              }`}
           >
             {confirmLabel}
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };
 

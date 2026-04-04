@@ -10,31 +10,31 @@ import React, { useState, useRef, useEffect } from 'react';
  */
 const SNAPS = {
   closed: 'closed',
-  half:   'half',
-  full:   'full',
+  half: 'half',
+  full: 'full',
 };
 
 // Heights from bottom (CSS bottom value is 0, so we translate upward)
 const snapTranslate = (snap, sheetHeight) => {
   switch (snap) {
     case SNAPS.closed: return sheetHeight - 52;   // only handle visible (52px)
-    case SNAPS.half:   return sheetHeight * 0.50; // 50% visible
-    case SNAPS.full:   return 20;                  // nearly full screen (20px gap at top)
-    default:           return sheetHeight - 52;
+    case SNAPS.half: return sheetHeight * 0.50; // 50% visible
+    case SNAPS.full: return 20;                  // nearly full screen (20px gap at top)
+    default: return sheetHeight - 52;
   }
 };
 
 const cycleSnap = (current) => {
   if (current === SNAPS.closed) return SNAPS.half;
-  if (current === SNAPS.half)   return SNAPS.full;
+  if (current === SNAPS.half) return SNAPS.full;
   return SNAPS.closed;
 };
 
 const BottomSheet = ({ label = 'Controls', badge, children }) => {
-  const [snap, setSnap]           = useState(SNAPS.closed);
-  const [dragY, setDragY]         = useState(null); // null = not dragging
-  const [sheetH, setSheetH]       = useState(window.innerHeight * 0.92);
-  const sheetRef  = useRef(null);
+  const [snap, setSnap] = useState(SNAPS.closed);
+  const [dragY, setDragY] = useState(null); // null = not dragging
+  const [sheetH, setSheetH] = useState(window.innerHeight * 0.92);
+  const sheetRef = useRef(null);
   const dragStart = useRef(null); // { clientY, translateY }
 
   // Recalculate sheet height on resize
@@ -56,7 +56,7 @@ const BottomSheet = ({ label = 'Controls', badge, children }) => {
   const onTouchMove = (e) => {
     if (!dragStart.current) return;
     const delta = dragStart.current.clientY - e.touches[0].clientY;
-    const newY  = Math.max(20, Math.min(sheetH - 52, dragStart.current.translateY - delta));
+    const newY = Math.max(20, Math.min(sheetH - 52, dragStart.current.translateY - delta));
     setDragY(newY);
   };
 
@@ -66,8 +66,8 @@ const BottomSheet = ({ label = 'Controls', badge, children }) => {
     // Snap to nearest
     const snaps = {
       [SNAPS.closed]: snapTranslate(SNAPS.closed, sheetH),
-      [SNAPS.half]:   snapTranslate(SNAPS.half, sheetH),
-      [SNAPS.full]:   snapTranslate(SNAPS.full, sheetH),
+      [SNAPS.half]: snapTranslate(SNAPS.half, sheetH),
+      [SNAPS.full]: snapTranslate(SNAPS.full, sheetH),
     };
     let nearest = SNAPS.closed;
     let minDist = Infinity;
@@ -85,7 +85,7 @@ const BottomSheet = ({ label = 'Controls', badge, children }) => {
     dragStart.current = { clientY: e.clientY, translateY: currentTranslate };
     const onMove = (ev) => {
       const delta = dragStart.current.clientY - ev.clientY;
-      const newY  = Math.max(20, Math.min(sheetH - 52, dragStart.current.translateY - delta));
+      const newY = Math.max(20, Math.min(sheetH - 52, dragStart.current.translateY - delta));
       setDragY(newY);
     };
     const onUp = () => {

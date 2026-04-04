@@ -2,7 +2,7 @@ import React, { useMemo } from 'react';
 import { evaluateCircuit } from '../utils/circuitLogic';
 
 const TruthTable = ({ gates, wires }) => {
-  const inputGates  = gates.filter(g => g.type === 'INPUT');
+  const inputGates = gates.filter(g => g.type === 'INPUT');
   const outputGates = gates.filter(g => g.type === 'OUTPUT');
 
   const rows = useMemo(() => {
@@ -41,14 +41,14 @@ const TruthTable = ({ gates, wires }) => {
           <tr>
             {inputGates.map((g, i) => (
               <th key={g.id} className="px-2 py-1.5 text-center font-bold uppercase tracking-wider"
-                  style={{ color: 'var(--neon-amber)', borderBottom: '1px solid rgba(245,158,11,0.2)', background: 'rgba(245,158,11,0.06)' }}>
+                style={{ color: 'var(--neon-amber)', borderBottom: '1px solid rgba(245,158,11,0.2)', background: 'rgba(245,158,11,0.06)' }}>
                 I{i + 1}
               </th>
             ))}
             <th className="px-1 py-1.5" style={{ background: 'rgba(0,0,0,0.2)', borderBottom: '1px solid rgba(255,255,255,0.06)' }} />
             {outputGates.map((g, i) => (
               <th key={g.id} className="px-2 py-1.5 text-center font-bold uppercase tracking-wider"
-                  style={{ color: 'var(--neon-red)', borderBottom: '1px solid rgba(255,51,102,0.2)', background: 'rgba(255,51,102,0.06)' }}>
+                style={{ color: 'var(--neon-red)', borderBottom: '1px solid rgba(255,51,102,0.2)', background: 'rgba(255,51,102,0.06)' }}>
                 O{i + 1}
               </th>
             ))}
@@ -59,17 +59,17 @@ const TruthTable = ({ gates, wires }) => {
             const allHigh = row.outputs.every(v => v === 1);
             return (
               <tr key={ri} className="transition-colors"
-                  style={{ background: allHigh ? 'rgba(57,255,20,0.06)' : ri % 2 === 0 ? 'rgba(255,255,255,0.015)' : 'transparent' }}>
+                style={{ background: allHigh ? 'rgba(57,255,20,0.06)' : ri % 2 === 0 ? 'rgba(255,255,255,0.015)' : 'transparent' }}>
                 {row.inputs.map((v, i) => (
                   <td key={i} className="px-2 py-1 text-center font-semibold"
-                      style={{ color: v === 1 ? '#fcd34d' : 'rgba(255,255,255,0.3)', borderRight: '1px solid rgba(255,255,255,0.04)' }}>
+                    style={{ color: v === 1 ? '#fcd34d' : 'rgba(255,255,255,0.3)', borderRight: '1px solid rgba(255,255,255,0.04)' }}>
                     {v}
                   </td>
                 ))}
                 <td className="px-0.5" style={{ background: 'rgba(255,255,255,0.03)', borderRight: '1px solid rgba(255,255,255,0.06)' }}>→</td>
                 {row.outputs.map((v, i) => (
                   <td key={i} className="px-2 py-1 text-center font-black"
-                      style={{ color: v === 1 ? 'var(--neon-green)' : v === 0 ? 'rgba(255,51,102,0.6)' : 'rgba(255,255,255,0.3)' }}>
+                    style={{ color: v === 1 ? 'var(--neon-green)' : v === 0 ? 'rgba(255,51,102,0.6)' : 'rgba(255,255,255,0.3)' }}>
                     {v === '?' ? '?' : v}
                   </td>
                 ))}

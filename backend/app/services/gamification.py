@@ -33,3 +33,34 @@ def check_badges(user: models.User, circuit: models.Circuit):
         earned_new.append("Speed Demon")
         
     return earned_new
+
+
+def evaluate_circuit_score(circuit_data: dict) -> int:
+    """
+    Simple auto-scorer for a submitted circuit.
+    Returns a score 0-100 based on structural heuristics.
+    """
+    if not circuit_data or not isinstance(circuit_data, dict):
+        return 0
+    gates = circuit_data.get("gates", [])
+    wires = circuit_data.get("wires", [])
+    outputs = [g for g in gates if isinstance(g, dict) and g.get("type") == "OUTPUT"]
+    inputs  = [g for g in gates if isinstance(g, dict) and g.get("type") == "INPUT"]
+    logic   = [g for g in gates if isinstance(g, dict) and g.get("type") not in ("INPUT", "OUTPUT")]
+
+    if not gates or not outputs:
+        return 0
+    if not inputs or not logic:
+        return 20
+    if not wires:
+        return 10
+
+    # Connectivity ratio: wires vs max possible
+    max_wires = len(gates) * 2
+    connectivity = min(len(wires) / max_wires, 1.0) if max_wires > 0 else 0
+
+    # Complexity bonus
+    complexity = min(len(logic) / 5, 1.0)
+
+    score = int(40 + connectivity * 40 + complexity * 20)
+    return min(score, 100)

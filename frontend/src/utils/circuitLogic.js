@@ -14,11 +14,7 @@ export const validateCircuitConnections = (gates, wires) => {
         errors.push('Circuit must have at least one INPUT component.');
     }
 
-    const logicGates = gates.filter(g => g.type !== 'INPUT' && g.type !== 'OUTPUT');
-    if (logicGates.length === 0) {
-        isValid = false;
-        errors.push('Circuit must contain at least one logic gate.');
-    }
+    // Note: direct INPUT → OUTPUT circuits are valid (signal passthrough)
   
     gates.forEach(gate => {
       if (gate.type === 'INPUT') return;
