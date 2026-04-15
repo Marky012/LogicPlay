@@ -61,45 +61,45 @@ const TeacherLogin = () => {
       {/* Background glow */}
       <div className="fixed inset-0 pointer-events-none overflow-hidden">
         <div className="absolute top-[-20%] left-1/2 -translate-x-1/2 w-[600px] h-[600px] rounded-full opacity-10 blur-[120px]"
-             style={{ background: 'radial-gradient(circle, #7c3aed, transparent)' }} />
+             style={{ background: 'radial-gradient(circle, #0369a1, transparent)' }} />
       </div>
 
       <div className="w-full max-w-md relative z-10">
         {/* Logo */}
         <div className="flex justify-center mb-8">
-          <img src={logo} alt="LogicPlay" className="h-14 object-contain drop-shadow-[0_0_16px_rgba(124,58,237,0.6)]" />
+          <img src={logo} alt="LogicPlay" className="h-14 object-contain drop-shadow-[0_0_16px_rgba(0,130,200,0.6)]" />
         </div>
 
         {/* Card */}
         <div className="glass-panel p-8 rounded-2xl flex flex-col gap-6"
-             style={{ border: '1px solid rgba(124,58,237,0.3)', boxShadow: '0 0 40px rgba(124,58,237,0.12)' }}>
+             style={{ border: '1px solid rgba(0,130,200,0.3)', boxShadow: '0 0 40px rgba(0,130,200,0.12)' }}>
 
           {/* Header */}
           <div className="text-center">
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold mb-3"
-                 style={{ background: 'rgba(124,58,237,0.15)', border: '1px solid rgba(124,58,237,0.3)', color: '#a78bfa' }}>
+                 style={{ background: 'var(--c-surface-2)', border: '1px solid var(--neon-blue)', color: 'var(--neon-blue)' }}>
               <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
                 <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round"/>
               </svg>
               INSTRUCTOR PORTAL
             </div>
-            <h1 className="text-2xl font-black text-white">
+            <h1 className="text-2xl font-black" style={{ color: 'var(--c-text)' }}>
               {mode === 'login' ? 'Teacher Sign In' : 'Create Teacher Account'}
             </h1>
-            <p className="text-sm text-slate-500 mt-1">
+            <p className="text-sm mt-1" style={{ color: 'var(--c-text-muted)' }}>
               {mode === 'login' ? 'Access your teaching dashboard' : 'Register to start creating assignments'}
             </p>
           </div>
 
           {/* Mode toggle */}
-          <div className="flex gap-1 p-1 rounded-xl" style={{ background: 'rgba(0,0,0,0.3)' }}>
+          <div className="flex gap-1 p-1 rounded-xl" style={{ background: 'var(--c-surface-2)', border: '1px solid var(--c-border-dim)' }}>
             {['login', 'register'].map(m => (
               <button key={m} type="button" onClick={() => { setMode(m); setError(''); setSuccessMsg(''); }}
                       className="flex-1 py-2 text-xs font-bold rounded-lg transition-all duration-200 capitalize"
                       style={{
-                        background: mode === m ? 'rgba(124,58,237,0.25)' : 'transparent',
-                        color: mode === m ? '#a78bfa' : 'rgba(255,255,255,0.35)',
-                        border: mode === m ? '1px solid rgba(124,58,237,0.4)' : '1px solid transparent',
+                        background: mode === m ? 'var(--c-border-dim)' : 'transparent',
+                        color: mode === m ? 'var(--c-text)' : 'var(--c-text-muted)',
+                        border: mode === m ? '1px solid rgba(0,130,200,0.4)' : '1px solid transparent',
                       }}>
                 {m === 'login' ? 'Sign In' : 'Register'}
               </button>
@@ -109,7 +109,7 @@ const TeacherLogin = () => {
           {/* Form */}
           <form onSubmit={handleSubmit} className="flex flex-col gap-4">
             <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-bold text-slate-400 uppercase tracking-widest">Username</label>
+              <label className="text-xs font-bold uppercase tracking-widest" style={{ color: 'var(--c-text-muted)' }}>Username</label>
               <input
                 id="teacher-username"
                 type="text"
@@ -117,19 +117,20 @@ const TeacherLogin = () => {
                 onChange={e => setUsername(e.target.value)}
                 placeholder="e.g. prof_smith"
                 autoComplete="username"
-                className="w-full px-4 py-3 rounded-xl text-sm text-white bg-transparent outline-none transition-all duration-200"
+                className="w-full px-4 py-3 rounded-xl text-sm bg-transparent outline-none transition-all duration-200"
                 style={{
                   background: 'rgba(255,255,255,0.04)',
-                  border: '1px solid rgba(124,58,237,0.25)',
+                  border: '1px solid rgba(0,130,200,0.25)',
                   boxShadow: 'none',
+                  color: 'var(--c-text)',
                 }}
-                onFocus={e => e.target.style.border = '1px solid rgba(124,58,237,0.6)'}
-                onBlur={e => e.target.style.border = '1px solid rgba(124,58,237,0.25)'}
+                onFocus={e => e.target.style.border = '1px solid rgba(0,130,200,0.6)'}
+                onBlur={e => e.target.style.border = '1px solid rgba(0,130,200,0.25)'}
               />
             </div>
 
             <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-bold text-slate-400 uppercase tracking-widest">Password</label>
+              <label className="text-xs font-bold uppercase tracking-widest" style={{ color: 'var(--c-text-muted)' }}>Password</label>
               <input
                 id="teacher-password"
                 type="password"
@@ -137,19 +138,20 @@ const TeacherLogin = () => {
                 onChange={e => setPassword(e.target.value)}
                 placeholder="••••••••"
                 autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
-                className="w-full px-4 py-3 rounded-xl text-sm text-white outline-none transition-all duration-200"
+                className="w-full px-4 py-3 rounded-xl text-sm outline-none transition-all duration-200"
                 style={{
                   background: 'rgba(255,255,255,0.04)',
-                  border: '1px solid rgba(124,58,237,0.25)',
+                  border: '1px solid rgba(0,130,200,0.25)',
+                  color: 'var(--c-text)',
                 }}
-                onFocus={e => e.target.style.border = '1px solid rgba(124,58,237,0.6)'}
-                onBlur={e => e.target.style.border = '1px solid rgba(124,58,237,0.25)'}
+                onFocus={e => e.target.style.border = '1px solid rgba(0,130,200,0.6)'}
+                onBlur={e => e.target.style.border = '1px solid rgba(0,130,200,0.25)'}
               />
             </div>
 
             {mode === 'register' && (
               <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-bold text-slate-400 uppercase tracking-widest">Confirm Password</label>
+                <label className="text-xs font-bold uppercase tracking-widest" style={{ color: 'var(--c-text-muted)' }}>Confirm Password</label>
                 <input
                   id="teacher-confirm-password"
                   type="password"
@@ -157,13 +159,14 @@ const TeacherLogin = () => {
                   onChange={e => setConfirmPassword(e.target.value)}
                   placeholder="••••••••"
                   autoComplete="new-password"
-                  className="w-full px-4 py-3 rounded-xl text-sm text-white outline-none transition-all duration-200"
+                  className="w-full px-4 py-3 rounded-xl text-sm outline-none transition-all duration-200"
                   style={{
                     background: 'rgba(255,255,255,0.04)',
-                    border: '1px solid rgba(124,58,237,0.25)',
+                    border: '1px solid rgba(0,130,200,0.25)',
+                    color: 'var(--c-text)',
                   }}
-                  onFocus={e => e.target.style.border = '1px solid rgba(124,58,237,0.6)'}
-                  onBlur={e => e.target.style.border = '1px solid rgba(124,58,237,0.25)'}
+                  onFocus={e => e.target.style.border = '1px solid rgba(0,130,200,0.6)'}
+                  onBlur={e => e.target.style.border = '1px solid rgba(0,130,200,0.25)'}
                 />
               </div>
             )}
@@ -187,9 +190,9 @@ const TeacherLogin = () => {
               disabled={loading}
               className="w-full py-3 rounded-xl font-black text-sm text-white transition-all duration-200 hover:scale-[1.02] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 flex items-center justify-center gap-2"
               style={{
-                background: 'linear-gradient(135deg, #5b21b6, #7c3aed)',
-                border: '1px solid rgba(124,58,237,0.5)',
-                boxShadow: '0 0 24px rgba(124,58,237,0.3)',
+                background: 'linear-gradient(135deg, #075985, #0369a1)',
+                border: '1px solid rgba(0,130,200,0.5)',
+                boxShadow: '0 0 24px rgba(0,130,200,0.3)',
               }}
             >
               {loading ? (
@@ -207,7 +210,7 @@ const TeacherLogin = () => {
 
           {/* Back to student login */}
           <div className="text-center">
-            <Link to="/" className="text-xs text-slate-500 hover:text-slate-300 transition-colors duration-200">
+            <Link to="/" className="text-xs transition-colors duration-200" style={{ color: 'var(--c-text-muted)' }}>
               ← Back to Student Login
             </Link>
           </div>

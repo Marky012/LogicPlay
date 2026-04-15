@@ -108,7 +108,7 @@ const BottomSheet = ({ label = 'Controls', badge, children }) => {
       {isOpen && (
         <div
           className="fixed inset-0 z-[200] lg:hidden"
-          style={{ background: 'rgba(0,0,0,0.45)', backdropFilter: 'blur(3px)' }}
+          style={{ background: 'var(--c-bg-glass)', backdropFilter: 'blur(3px)' }}
           onClick={() => setSnap(SNAPS.closed)}
         />
       )}
@@ -121,10 +121,10 @@ const BottomSheet = ({ label = 'Controls', badge, children }) => {
           height: `${sheetH}px`,
           transform: `translateY(${currentTranslate}px)`,
           transition: dragY !== null ? 'none' : 'transform 0.38s cubic-bezier(0.32,0.72,0,1)',
-          background: 'rgba(8,16,30,0.97)',
+          background: 'var(--c-sheet-bg)',
           borderRadius: '22px 22px 0 0',
-          border: '1px solid rgba(0,212,255,0.2)',
-          boxShadow: '0 -8px 40px rgba(0,0,0,0.6), 0 -1px 0 rgba(0,212,255,0.15)',
+          border: '1px solid var(--c-border)',
+          boxShadow: '0 -8px 40px rgba(0,0,0,0.4), 0 -1px 0 rgba(0,212,255,0.12)',
         }}
       >
         {/* ── Handle ── */}
@@ -140,7 +140,7 @@ const BottomSheet = ({ label = 'Controls', badge, children }) => {
           {/* Pill */}
           <div
             className="w-10 h-1.5 rounded-full mb-2.5"
-            style={{ background: 'rgba(0,212,255,0.35)' }}
+            style={{ background: 'var(--neon-blue)', opacity: 0.4 }}
           />
 
           {/* Label chip */}
@@ -148,8 +148,8 @@ const BottomSheet = ({ label = 'Controls', badge, children }) => {
             <span
               className="text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-full"
               style={{
-                background: 'rgba(0,212,255,0.1)',
-                border: '1px solid rgba(0,212,255,0.25)',
+                background: 'var(--c-surface-2)',
+                border: '1px solid var(--neon-blue)',
                 color: 'var(--neon-blue)',
               }}
             >

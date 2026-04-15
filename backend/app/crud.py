@@ -33,6 +33,14 @@ def create_user(db: Session, user: schemas.UserCreate):
     db.refresh(db_user)
     return db_user
 
+def delete_user(db: Session, username: str):
+    db_user = get_user_by_username(db, username)
+    if db_user:
+        db.delete(db_user)
+        db.commit()
+        return True
+    return False
+
 
 # ─────────────────────────── Teacher Auth ───────────────────────
 
@@ -70,6 +78,26 @@ def create_circuit(db: Session, circuit: schemas.CircuitCreate, user_id: int):
     db.refresh(db_circuit)
     return db_circuit
 
+def delete_circuit(db: Session, circuit_id: int):
+    db_circuit = get_circuit(db, circuit_id)
+    if db_circuit:
+        db.delete(db_circuit)
+        db.commit()
+    return db_circuit
+
+def update_circuit_name(db: Session, circuit_id: int, new_name: str):
+    from sqlalchemy.orm.attributes import flag_modified
+    db_circuit = get_circuit(db, circuit_id)
+    if db_circuit and db_circuit.circuit_data:
+        # Reconstruct or mutate dict safely
+        new_data = dict(db_circuit.circuit_data)
+        new_data['name'] = new_name
+        db_circuit.circuit_data = new_data
+        flag_modified(db_circuit, "circuit_data")
+        db.commit()
+        db.refresh(db_circuit)
+    return db_circuit
+
 
 # ─────────────────────────── Classrooms ────────────────────────
 import random
@@ -85,7 +113,12 @@ def create_classroom(db: Session, data: schemas.ClassroomCreate, teacher_id: int
     while db.query(models.Classroom).filter(models.Classroom.join_code == code).first():
         code = generate_join_code()
         
-    db_class = models.Classroom(name=data.name, teacher_id=teacher_id, join_code=code)
+    db_class = models.Classroom(
+        name=data.name, 
+        teacher_id=teacher_id, 
+        join_code=code,
+        require_approval=data.require_approval
+    )
     db.add(db_class)
     db.commit()
     db.refresh(db_class)
@@ -109,13 +142,65 @@ def enroll_student(db: Session, classroom_id: int, student_id: int):
     if existing:
         return existing
     db_enroll = models.Enrollment(classroom_id=classroom_id, student_id=student_id)
+    # Check if we should enforce approval
+    classroom = db.query(models.Classroom).filter(models.Classroom.id == classroom_id).first()
+    if classroom and classroom.require_approval:
+        db_enroll.status = "pending"
+    else:
+        db_enroll.status = "approved"
+
     db.add(db_enroll)
     db.commit()
     return db_enroll
 
 def get_classroom_students(db: Session, classroom_id: int):
     enrollments = db.query(models.Enrollment).filter(models.Enrollment.classroom_id == classroom_id).all()
+    # It might be beneficial to return only approved students here or all, the api usually just wants all and the router filters, or router returns all. We'll return all so the teacher can see pending.
     return [e.student for e in enrollments]
+
+def get_classroom_enrollments(db: Session, classroom_id: int):
+    return db.query(models.Enrollment).filter(models.Enrollment.classroom_id == classroom_id).all()
+
+def update_classroom(db: Session, classroom_id: int, data: schemas.ClassroomUpdate):
+    db_class = db.query(models.Classroom).filter(models.Classroom.id == classroom_id).first()
+    if not db_class: return None
+    if data.name is not None:
+        db_class.name = data.name
+    if data.require_approval is not None:
+        db_class.require_approval = data.require_approval
+    db.commit()
+    db.refresh(db_class)
+    return db_class
+
+def delete_classroom(db: Session, classroom_id: int):
+    db_class = db.query(models.Classroom).filter(models.Classroom.id == classroom_id).first()
+    if db_class:
+        db.delete(db_class)
+        db.commit()
+        return True
+    return False
+
+def remove_student_from_class(db: Session, classroom_id: int, student_id: int):
+    enroll = db.query(models.Enrollment).filter(
+        models.Enrollment.classroom_id == classroom_id,
+        models.Enrollment.student_id == student_id
+    ).first()
+    if enroll:
+        db.delete(enroll)
+        db.commit()
+        return True
+    return False
+
+def approve_student_enrollment(db: Session, classroom_id: int, student_id: int):
+    enroll = db.query(models.Enrollment).filter(
+        models.Enrollment.classroom_id == classroom_id,
+        models.Enrollment.student_id == student_id
+    ).first()
+    if enroll:
+        enroll.status = "approved"
+        db.commit()
+        return True
+    return False
 
 # ─────────────────────────── Assignment ─────────────────────────
 

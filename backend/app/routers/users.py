@@ -21,6 +21,17 @@ def create_user(user: schemas.UserCreate, db: Session = Depends(get_db)):
 def read_all_students(db: Session = Depends(get_db)):
     return crud.get_all_users(db)
 
+@router.get("/leaderboard", response_model=List[schemas.User])
+def get_leaderboard(limit: int = 20, db: Session = Depends(get_db)):
+    """Returns top students sorted by XP (points descending)."""
+    return (
+        db.query(models.User)
+        .filter(models.User.role == "student")
+        .order_by(models.User.points.desc(), models.User.level.desc(), models.User.username.asc())
+        .limit(limit)
+        .all()
+    )
+
 @router.get("/{username}", response_model=schemas.User)
 def read_user(username: str, db: Session = Depends(get_db)):
     db_user = crud.get_user_by_username(db, username=username)
@@ -34,3 +45,10 @@ def read_user_circuits(username: str, db: Session = Depends(get_db)):
     if db_user is None:
         raise HTTPException(status_code=404, detail="User not found")
     return db_user.circuits
+
+@router.delete("/{username}")
+def delete_user(username: str, db: Session = Depends(get_db)):
+    success = crud.delete_user(db, username=username)
+    if not success:
+        raise HTTPException(status_code=404, detail="User not found")
+    return {"detail": "User deleted successfully"}

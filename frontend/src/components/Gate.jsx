@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
 import { useDrag } from 'react-dnd';
 import ConfirmModal from './ConfirmModal';
+import { useTheme } from '../context/ThemeContext';
+import { triggerFeedback } from '../utils/feedback';
 
 /* ── Gate SVG shapes ── */
-const GateShape = ({ type, isActive, computedValue, label }) => {
+const GateShape = ({ type, isActive, computedValue, label, isLight, showBinaryOutput }) => {
   const getGlowColor = () => {
     if (type === 'OUTPUT') return isActive ? 'rgba(57,255,20,0.9)' : 'rgba(100,100,100,0.3)';
     if (type === 'INPUT')  return isActive ? 'rgba(245,158,11,0.9)' : 'rgba(100,100,100,0.3)';
@@ -17,6 +19,7 @@ const GateShape = ({ type, isActive, computedValue, label }) => {
     NAND:   { stroke: '#00ffea', fill: 'rgba(0,255,234,0.1)',   text: '#00ffea' },
     NOR:    { stroke: '#ff6b2b', fill: 'rgba(255,107,43,0.15)', text: '#ff8c55' },
     XOR:    { stroke: '#b4ff00', fill: 'rgba(180,255,0,0.1)',   text: '#b4ff00' },
+    XNOR:   { stroke: '#ff33cc', fill: 'rgba(255,51,204,0.1)',  text: '#ff66dd' },
     INPUT:  { stroke: '#f59e0b', fill: 'rgba(245,158,11,0.15)', text: '#fcd34d' },
     OUTPUT: { stroke: '#ff3366', fill: 'rgba(255,51,102,0.15)', text: '#ff6688' },
   };
@@ -41,10 +44,12 @@ const GateShape = ({ type, isActive, computedValue, label }) => {
         )}
         <div className="input-toggle w-10 h-10 rounded-full flex items-center justify-center font-black text-lg transition-all duration-300 cursor-pointer"
              style={{
-               background: isActive ? 'radial-gradient(circle, rgba(245,158,11,0.6), rgba(245,158,11,0.2))' : 'rgba(40,40,60,0.8)',
-               border: `2px solid ${isActive ? c.stroke : 'rgba(255,255,255,0.15)'}`,
+               background: isActive 
+                 ? 'radial-gradient(circle, rgba(245,158,11,0.6), rgba(245,158,11,0.2))' 
+                 : isLight ? 'var(--c-surface-3)' : 'rgba(40,40,60,0.8)',
+               border: `2px solid ${isActive ? c.stroke : isLight ? 'var(--c-border)' : 'rgba(255,255,255,0.15)'}`,
                boxShadow: isActive ? `0 0 16px rgba(245,158,11,0.7), inset 0 0 10px rgba(245,158,11,0.2)` : 'none',
-               color: isActive ? '#fff' : 'rgba(255,255,255,0.3)',
+               color: isActive ? '#fff' : 'var(--c-text-muted)',
                fontFamily: '"JetBrains Mono", monospace'
              }}>
           {isActive ? '1' : '0'}
@@ -54,12 +59,32 @@ const GateShape = ({ type, isActive, computedValue, label }) => {
   }
 
   if (type === 'OUTPUT') {
+    if (showBinaryOutput) {
+      return (
+        <div className="relative flex items-center justify-center w-full h-full">
+          <div className="w-10 h-10 rounded-full flex items-center justify-center font-black text-lg transition-all duration-300"
+               style={{
+                 background: isActive 
+                   ? 'radial-gradient(circle, rgba(57,255,20,0.6), rgba(57,255,20,0.2))' 
+                   : isLight ? 'var(--c-surface-3)' : 'rgba(40,40,60,0.8)',
+                 border: `2px solid ${isActive ? '#39ff14' : isLight ? 'var(--c-border)' : 'rgba(255,255,255,0.15)'}`,
+                 boxShadow: isActive ? `0 0 16px rgba(57,255,20,0.7), inset 0 0 10px rgba(57,255,20,0.2)` : 'none',
+                 color: isActive ? '#fff' : 'var(--c-text-muted)',
+                 fontFamily: '"JetBrains Mono", monospace'
+               }}>
+            {isActive ? '1' : '0'}
+          </div>
+        </div>
+      );
+    }
     return (
       <div className="relative flex items-center justify-center w-full h-full">
         <div className="w-10 h-10 rounded-full flex items-center justify-center transition-all duration-300"
              style={{
-               background: isActive ? 'radial-gradient(circle, rgba(57,255,20,0.7), rgba(57,255,20,0.15))' : 'rgba(40,40,60,0.8)',
-               border: `3px solid ${isActive ? '#39ff14' : 'rgba(255,255,255,0.1)'}`,
+               background: isActive 
+                 ? 'radial-gradient(circle, rgba(57,255,20,0.7), rgba(57,255,20,0.15))' 
+                 : isLight ? 'var(--c-surface-3)' : 'rgba(40,40,60,0.8)',
+               border: `3px solid ${isActive ? '#39ff14' : isLight ? 'var(--c-border)' : 'rgba(255,255,255,0.1)'}`,
                boxShadow: isActive ? '0 0 20px rgba(57,255,20,0.8), inset 0 0 12px rgba(57,255,20,0.3)' : 'none',
              }}>
           {isActive && <div className="w-3 h-3 rounded-full animate-pulse-glow" style={{ background: '#39ff14', boxShadow: '0 0 8px #39ff14' }} />}
@@ -72,7 +97,7 @@ const GateShape = ({ type, isActive, computedValue, label }) => {
   return (
     <div className="flex items-center justify-center w-full h-full"
          style={{ filter: isActive ? `drop-shadow(0 0 6px ${c.stroke})` : 'none' }}>
-      <span className="font-black text-sm tracking-tight select-none" style={{ color: isActive ? c.text : 'rgba(255,255,255,0.5)' }}>
+      <span className="font-black text-sm tracking-tight select-none" style={{ color: isActive ? c.text : 'var(--c-text-muted)' }}>
         {type}
       </span>
     </div>
@@ -86,6 +111,7 @@ const GATE_CONFIGS = {
   NAND:   { border: '#00ffea', bg: 'rgba(0,255,234,0.08)', w: 72, h: 52 },
   NOR:    { border: '#ff6b2b', bg: 'rgba(255,107,43,0.1)', w: 72, h: 52 },
   XOR:    { border: '#b4ff00', bg: 'rgba(180,255,0,0.08)', w: 72, h: 52 },
+  XNOR:   { border: '#ff33cc', bg: 'rgba(255,51,204,0.08)', w: 72, h: 52 },
   INPUT:  { border: '#f59e0b', bg: 'rgba(245,158,11,0.08)', w: 58, h: 52 },
   OUTPUT: { border: '#ff3366', bg: 'rgba(255,51,102,0.08)', w: 58, h: 52 },
 };
@@ -99,7 +125,8 @@ const getPins = (type) => {
   }
 };
 
-const Gate = ({ id, type, x, y, state, onPinClick, onToggleState, computedValue, onDelete, isReadOnly, label }) => {
+const Gate = ({ id, type, x, y, state, onPinClick, onToggleState, computedValue, onDelete, isReadOnly, label, showBinaryOutput }) => {
+  const { isLight } = useTheme();
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   const [{ isDragging }, dragRef] = useDrag(() => ({
@@ -114,8 +141,10 @@ const Gate = ({ id, type, x, y, state, onPinClick, onToggleState, computedValue,
 
   const isActive = type === 'INPUT' ? state === 1 : computedValue === 1;
 
-  const borderColor = isActive ? cfg.border : 'rgba(255,255,255,0.1)';
-  const glowStr = isActive ? `0 0 12px ${cfg.border}88, 0 0 4px ${cfg.border}44` : '0 2px 8px rgba(0,0,0,0.5)';
+  const borderColor = isActive ? cfg.border : isLight ? 'var(--c-border)' : 'rgba(255,255,255,0.1)';
+  const glowStr = isActive 
+    ? `0 0 12px ${cfg.border}88, 0 0 4px ${cfg.border}44` 
+    : isLight ? '0 2px 8px rgba(0,0,0,0.05)' : '0 2px 8px rgba(0,0,0,0.5)';
 
   return (
     <div ref={dragRef}
@@ -134,8 +163,12 @@ const Gate = ({ id, type, x, y, state, onPinClick, onToggleState, computedValue,
              border: `1.5px solid ${borderColor}`,
              boxShadow: glowStr,
            }}
-           onClick={type === 'INPUT' ? (e) => { e.stopPropagation(); onToggleState && onToggleState(id); } : undefined}>
-        <GateShape type={type} isActive={isActive} computedValue={computedValue} label={label} />
+           onClick={type === 'INPUT' ? (e) => { 
+             e.stopPropagation(); 
+             triggerFeedback('click');
+             onToggleState && onToggleState(id); 
+           } : undefined}>
+        <GateShape type={type} isActive={isActive} computedValue={computedValue} label={label} isLight={isLight} showBinaryOutput={showBinaryOutput} />
       </div>
 
       {/* Delete button — shows on hover */}
@@ -154,7 +187,11 @@ const Gate = ({ id, type, x, y, state, onPinClick, onToggleState, computedValue,
             message="This will also remove all connected wires."
             confirmLabel="Delete"
             danger
-            onConfirm={() => { setShowDeleteConfirm(false); onDelete && onDelete(id); }}
+            onConfirm={() => {
+              triggerFeedback('delete');
+              onDelete && onDelete(id);
+              setShowDeleteConfirm(false);
+            }}
             onCancel={() => setShowDeleteConfirm(false)}
           />
         </>
@@ -165,12 +202,12 @@ const Gate = ({ id, type, x, y, state, onPinClick, onToggleState, computedValue,
         <div className="absolute flex flex-col justify-around h-full py-1.5" style={{ left: -10, top: 0 }}>
           {Array.from({ length: pins.in }).map((_, i) => (
             <div key={`in-${i}`}
-                 className={`w-3 h-3 rounded-full transition-all duration-150 ${!isReadOnly ? 'cursor-pointer hover:scale-150' : 'cursor-default'}`}
-                 style={{
-                   background: 'rgba(30,40,60,0.9)',
-                   border: '1.5px solid rgba(0,212,255,0.4)',
-                   boxShadow: '0 0 4px rgba(0,212,255,0.2)',
-                 }}
+                  className={`w-3 h-3 rounded-full transition-all duration-150 ${!isReadOnly ? 'cursor-pointer hover:scale-150' : 'cursor-default'}`}
+                  style={{
+                    background: isLight ? 'var(--c-surface-3)' : 'rgba(30,40,60,0.9)',
+                    border: isLight ? '1.5px solid var(--c-border)' : '1.5px solid rgba(0,212,255,0.4)',
+                    boxShadow: isLight ? '0 1px 3px rgba(0,0,0,0.05)' : '0 0 4px rgba(0,212,255,0.2)',
+                  }}
                  onClick={!isReadOnly ? (e) => { e.stopPropagation(); onPinClick(id, `in-${i}`, 'input'); } : undefined}
             />
           ))}
@@ -180,12 +217,12 @@ const Gate = ({ id, type, x, y, state, onPinClick, onToggleState, computedValue,
       {/* Output pin (right side) — always visible, only clickable when not read-only */}
       {pins.out > 0 && (
         <div className="absolute flex flex-col justify-around h-full py-1.5" style={{ right: -10, top: 0 }}>
-          <div className={`w-3 h-3 rounded-full transition-all duration-150 ${!isReadOnly ? 'cursor-pointer hover:scale-150' : 'cursor-default'}`}
-               style={{
-                 background: isActive ? cfg.border : 'rgba(30,40,60,0.9)',
-                 border: `1.5px solid ${isActive ? cfg.border : 'rgba(0,212,255,0.4)'}`,
-                 boxShadow: isActive ? `0 0 6px ${cfg.border}` : '0 0 4px rgba(0,212,255,0.2)',
-               }}
+           <div className={`w-3 h-3 rounded-full transition-all duration-150 ${!isReadOnly ? 'cursor-pointer hover:scale-150' : 'cursor-default'}`}
+                style={{
+                  background: isActive ? cfg.border : isLight ? 'var(--c-surface-3)' : 'rgba(30,40,60,0.9)',
+                  border: `1.5px solid ${isActive ? cfg.border : isLight ? 'var(--c-border)' : 'rgba(0,212,255,0.4)'}`,
+                  boxShadow: isActive ? `0 0 6px ${cfg.border}` : isLight ? '0 1px 3px rgba(0,0,0,0.05)' : '0 0 4px rgba(0,212,255,0.2)',
+                }}
                onClick={!isReadOnly ? (e) => { e.stopPropagation(); onPinClick(id, 'out-0', 'output'); } : undefined}
           />
         </div>

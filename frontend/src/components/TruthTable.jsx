@@ -28,10 +28,10 @@ const TruthTable = ({ gates, wires }) => {
     <div className="text-xs text-slate-600 italic p-3">Add INPUT gates to see the truth table.</div>
   );
   if (outputGates.length === 0) return (
-    <div className="text-xs text-slate-600 italic p-3">Add an OUTPUT gate to see results.</div>
+    <div className="text-xs italic p-3" style={{ color: 'var(--c-text-muted)' }}>Add an OUTPUT gate to see results.</div>
   );
   if (inputGates.length > 4) return (
-    <div className="text-xs text-slate-500 p-3">Truth table limited to ≤ 4 inputs.</div>
+    <div className="text-xs p-3" style={{ color: 'var(--c-text-muted)' }}>Truth table limited to ≤ 4 inputs.</div>
   );
 
   return (
@@ -45,7 +45,7 @@ const TruthTable = ({ gates, wires }) => {
                 I{i + 1}
               </th>
             ))}
-            <th className="px-1 py-1.5" style={{ background: 'rgba(0,0,0,0.2)', borderBottom: '1px solid rgba(255,255,255,0.06)' }} />
+            <th className="px-1 py-1.5" style={{ background: 'var(--c-border-dim)', borderBottom: '1px solid var(--c-border-dim)' }} />
             {outputGates.map((g, i) => (
               <th key={g.id} className="px-2 py-1.5 text-center font-bold uppercase tracking-wider"
                 style={{ color: 'var(--neon-red)', borderBottom: '1px solid rgba(255,51,102,0.2)', background: 'rgba(255,51,102,0.06)' }}>
@@ -59,17 +59,17 @@ const TruthTable = ({ gates, wires }) => {
             const allHigh = row.outputs.every(v => v === 1);
             return (
               <tr key={ri} className="transition-colors"
-                style={{ background: allHigh ? 'rgba(57,255,20,0.06)' : ri % 2 === 0 ? 'rgba(255,255,255,0.015)' : 'transparent' }}>
+                style={{ background: allHigh ? 'rgba(57,255,20,0.08)' : ri % 2 === 0 ? 'var(--c-surface-2)' : 'transparent' }}>
                 {row.inputs.map((v, i) => (
                   <td key={i} className="px-2 py-1 text-center font-semibold"
-                    style={{ color: v === 1 ? '#fcd34d' : 'rgba(255,255,255,0.3)', borderRight: '1px solid rgba(255,255,255,0.04)' }}>
+                    style={{ color: v === 1 ? 'var(--neon-amber)' : 'var(--c-text-dim)', borderRight: '1px solid var(--c-border-dim)' }}>
                     {v}
                   </td>
                 ))}
-                <td className="px-0.5" style={{ background: 'rgba(255,255,255,0.03)', borderRight: '1px solid rgba(255,255,255,0.06)' }}>→</td>
+                <td className="px-0.5" style={{ background: 'var(--c-surface-2)', borderRight: '1px solid var(--c-border-dim)' }}>→</td>
                 {row.outputs.map((v, i) => (
                   <td key={i} className="px-2 py-1 text-center font-black"
-                    style={{ color: v === 1 ? 'var(--neon-green)' : v === 0 ? 'rgba(255,51,102,0.6)' : 'rgba(255,255,255,0.3)' }}>
+                    style={{ color: v === 1 ? 'var(--neon-green)' : v === 0 ? 'var(--neon-red)' : 'var(--c-text-dim)' }}>
                     {v === '?' ? '?' : v}
                   </td>
                 ))}
@@ -79,7 +79,7 @@ const TruthTable = ({ gates, wires }) => {
         </tbody>
       </table>
       {rows.length === 0 && (
-        <p className="text-xs text-slate-600 italic p-3">Wire your circuit to see outputs.</p>
+        <p className="text-xs italic p-3" style={{ color: 'var(--c-text-muted)' }}>Wire your circuit to see outputs.</p>
       )}
     </div>
   );

@@ -51,23 +51,23 @@ const ReportCardModal = ({ isOpen, data, onConfirm, isTeacherView = false }) => 
   const isPerfect = score >= 100;
   const isPassing = score >= 60 && score < 100;
   
-  const themeColor = isPerfect ? '#39ff14' : isPassing ? '#ffd700' : '#ff3366';
-  const themeGlow  = isPerfect ? 'rgba(57,255,20,0.4)' : isPassing ? 'rgba(255,215,0,0.4)' : 'rgba(255,51,102,0.4)';
+  const themeColor = isPerfect ? 'var(--neon-green)' : isPassing ? 'var(--neon-amber)' : 'var(--neon-red)';
+  const themeGlow  = isPerfect ? 'rgba(57,255,20,0.2)' : isPassing ? 'rgba(255,215,0,0.2)' : 'rgba(255,51,102,0.2)';
   const bgGradient = isPerfect 
-    ? 'linear-gradient(135deg, rgba(20,83,45,0.9), rgba(6,11,20,0.95))' 
+    ? 'linear-gradient(135deg, rgba(57,255,20,0.15), var(--c-surface))' 
     : isPassing 
-    ? 'linear-gradient(135deg, rgba(83,65,20,0.9), rgba(6,11,20,0.95))'
-    : 'linear-gradient(135deg, rgba(83,20,20,0.9), rgba(6,11,20,0.95))';
+    ? 'linear-gradient(135deg, rgba(255,215,0,0.15), var(--c-surface))'
+    : 'linear-gradient(135deg, rgba(255,51,102,0.15), var(--c-surface))';
 
   const statusText = isPerfect ? 'MISSION ACCOMPLISHED' : isPassing ? 'MISSION CLEARED' : 'MISSION FAILED';
 
   return (
     <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 overflow-y-auto"
-         style={{ background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(8px)' }}>
+         style={{ background: 'var(--c-bg-glass)', backdropFilter: 'blur(8px)' }}>
       <div 
         ref={cardRef}
         className="w-full max-w-md rounded-3xl p-1 animate-scale-up relative overflow-hidden"
-        style={{ background: `linear-gradient(135deg, ${themeColor}, rgba(0,0,0,0.2))`, boxShadow: `0 0 40px ${themeGlow}` }}>
+        style={{ background: themeColor, boxShadow: `0 8px 32px ${themeGlow}` }}>
         
         {/* Inner Card */}
         <div className="rounded-[22px] flex flex-col relative overflow-hidden" style={{ background: bgGradient }}>
@@ -84,8 +84,8 @@ const ReportCardModal = ({ isOpen, data, onConfirm, isTeacherView = false }) => 
             <p className="text-[10px] font-black uppercase tracking-[0.3em] mb-2" style={{ color: themeColor, textShadow: `0 0 8px ${themeColor}aa` }}>
               {statusText}
             </p>
-            <h2 className="text-3xl font-black text-white leading-tight">
-              {score}<span className="text-lg text-white/50">/100</span>
+            <h2 className="text-3xl font-black leading-tight" style={{ color: 'var(--c-text)' }}>
+              {score}<span className="text-lg" style={{ color: 'var(--c-text-muted)' }}>/100</span>
             </h2>
           </div>
 
@@ -94,14 +94,14 @@ const ReportCardModal = ({ isOpen, data, onConfirm, isTeacherView = false }) => 
             
             {/* Context Info */}
             <div className="flex flex-col gap-3">
-              <div className="flex items-center justify-between px-4 py-3 rounded-xl" style={{ background: 'rgba(0,0,0,0.4)', border: '1px solid rgba(255,255,255,0.05)' }}>
-                <span className="text-[10px] uppercase font-bold text-slate-500 tracking-wider">Operative</span>
-                <span className="font-bold text-white text-sm">{studentUsername || 'Unknown Node'}</span>
+              <div className="flex items-center justify-between px-4 py-3 rounded-xl" style={{ background: 'var(--c-surface-2)', border: '1px solid var(--c-border-dim)' }}>
+                <span className="text-[10px] uppercase font-bold tracking-wider" style={{ color: 'var(--c-text-muted)' }}>Operative</span>
+                <span className="font-bold text-sm" style={{ color: 'var(--c-text)' }}>{studentUsername || 'Unknown Node'}</span>
               </div>
               
-              <div className="flex items-center justify-between px-4 py-3 rounded-xl" style={{ background: 'rgba(0,0,0,0.4)', border: '1px solid rgba(255,255,255,0.05)' }}>
-                <span className="text-[10px] uppercase font-bold text-slate-500 tracking-wider">Target Directive</span>
-                <span className="font-bold text-white text-sm max-w-[60%] text-right truncate" title={assignmentTitle || 'Freeplay'}>
+              <div className="flex items-center justify-between px-4 py-3 rounded-xl" style={{ background: 'var(--c-surface-2)', border: '1px solid var(--c-border-dim)' }}>
+                <span className="text-[10px] uppercase font-bold tracking-wider" style={{ color: 'var(--c-text-muted)' }}>Target Directive</span>
+                <span className="font-bold text-sm max-w-[60%] text-right truncate" style={{ color: 'var(--c-text)' }} title={assignmentTitle || 'Freeplay'}>
                   {assignmentTitle || 'Freeplay Sector'}
                 </span>
               </div>
@@ -109,8 +109,8 @@ const ReportCardModal = ({ isOpen, data, onConfirm, isTeacherView = false }) => 
 
             {/* Performance Stats */}
             <div className="grid grid-cols-2 gap-3 mt-2">
-              <StatPill label="Logic Gates" value={gateCount ?? 0} color="#00d4ff" />
-              <StatPill label="Connections" value={wireCount ?? 0} color="#a78bfa" />
+              <StatPill label="Logic Gates" value={gateCount ?? 0} color="var(--neon-blue)" />
+              <StatPill label="Connections" value={wireCount ?? 0} color="var(--neon-blue)" />
             </div>
 
             <div className="text-center mt-2">
@@ -133,7 +133,8 @@ const ReportCardModal = ({ isOpen, data, onConfirm, isTeacherView = false }) => 
                 <button
                   onClick={handleDownload}
                   disabled={downloading}
-                  className="w-full py-3 rounded-xl font-bold text-xs text-white transition-all hover:bg-white/10 disabled:opacity-50 flex items-center justify-center gap-2 uppercase tracking-widest border border-white/10"
+                  className="w-full py-3 rounded-xl font-bold text-xs transition-all disabled:opacity-50 flex items-center justify-center gap-2 uppercase tracking-widest border"
+                  style={{ background: 'var(--c-surface-2)', borderColor: 'var(--c-border-dim)', color: 'var(--c-text)' }}
                 >
                   {downloading ? (
                     <><svg className="animate-spin w-4 h-4" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" strokeDasharray="30" strokeDashoffset="10"/></svg> Exporting...</>

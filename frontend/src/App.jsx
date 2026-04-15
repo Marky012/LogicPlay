@@ -2,6 +2,7 @@ import React, { useContext } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, AuthContext } from './context/AuthContext.jsx';
 import { ToastProvider } from './components/ToastNotification.jsx';
+import { ThemeProvider } from './context/ThemeContext.jsx';
 import Home from './pages/Home.jsx';
 import Playground from './pages/Playground.jsx';
 import Profile from './pages/Profile.jsx';
@@ -103,13 +104,15 @@ function AppRoutes() {
 
 function App() {
   return (
-    <AuthProvider>
-      <ToastProvider>
-        <BrowserRouter>
-          <AppRoutes />
-        </BrowserRouter>
-      </ToastProvider>
-    </AuthProvider>
+    <ThemeProvider>
+      <AuthProvider>
+        <ToastProvider>
+          <BrowserRouter>
+            <AppRoutes />
+          </BrowserRouter>
+        </ToastProvider>
+      </AuthProvider>
+    </ThemeProvider>
   );
 }
 

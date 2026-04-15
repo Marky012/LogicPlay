@@ -48,6 +48,20 @@ def read_circuit(circuit_id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Circuit not found")
     return db_circuit
 
+@router.delete("/{circuit_id}", response_model=schemas.Circuit)
+def delete_circuit(circuit_id: int, db: Session = Depends(get_db)):
+    db_circuit = crud.delete_circuit(db, circuit_id=circuit_id)
+    if db_circuit is None:
+        raise HTTPException(status_code=404, detail="Circuit not found")
+    return db_circuit
+
+@router.put("/{circuit_id}/name", response_model=schemas.Circuit)
+def update_circuit_name(circuit_id: int, payload: schemas.CircuitRename, db: Session = Depends(get_db)):
+    db_circuit = crud.update_circuit_name(db, circuit_id=circuit_id, new_name=payload.name)
+    if db_circuit is None:
+        raise HTTPException(status_code=404, detail="Circuit not found")
+    return db_circuit
+
 @router.post("/grade")
 def grade_circuit(circuit_data: Dict[str, Any]):
     try:

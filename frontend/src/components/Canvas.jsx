@@ -2,11 +2,13 @@ import React, { useState, useRef, useEffect } from 'react';
 import { useDrop } from 'react-dnd';
 import Gate from './Gate';
 import ConfirmModal from './ConfirmModal';
+import { useTheme } from '../context/ThemeContext';
+import { triggerFeedback } from '../utils/feedback';
 import p5 from 'p5';
 import { sketch } from '../utils/animation';
 
 /* ── Gate dimensions (must match Gate.jsx GATE_CONFIGS) ── */
-const GATE_W = { AND:72, OR:72, NOT:66, NAND:72, NOR:72, XOR:72, INPUT:58, OUTPUT:58 };
+const GATE_W = { AND:72, OR:72, NOT:66, NAND:72, NOR:72, XOR:72, XNOR:72, INPUT:58, OUTPUT:58 };
 const GATE_H = 52; // all gates share the same height
 const PIN_R  = 6;  // half of w-3 (12px) dot
 const PIN_OFFSET = 10; // Gate uses left:-10 / right:-10
@@ -38,17 +40,20 @@ const pinCenter = (gate, pinId) => {
   return { x: gate.x - PIN_OFFSET + PIN_R, y: cy };
 };
 
-const Canvas = ({ gates, setGates, wires, setWires, onGateStateToggle, activeWires, computedGateValues, resetViewTrigger, isReadOnly }) => {
+const Canvas = ({ gates, setGates, wires, setWires, onGateStateToggle, activeWires, computedGateValues, resetViewTrigger, isReadOnly, showBinaryOutput }) => {
+  const { theme } = useTheme();
   const canvasRef      = useRef(null);
   const p5ContainerRef = useRef(null);
   const sketchRef      = useRef(null);
   const [drawingWire, setDrawingWire] = useState(null);
+  const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
   const [scale, setScale] = useState(1);
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const [isPanning, setIsPanning] = useState(false);
   const [wireToDelete, setWireToDelete] = useState(null);
   const [showOutputToOutputModal, setShowOutputToOutputModal] = useState(false);
   const [showInputToInputModal, setShowInputToInputModal] = useState(false);
+  const [showInputLimitModal, setShowInputLimitModal] = useState(false);
   const panStartRef = useRef({ x: 0, y: 0 });
 
   // Keep live refs so event handlers always read current values (avoids stale closures)
@@ -191,6 +196,13 @@ const Canvas = ({ gates, setGates, wires, setWires, onGateStateToggle, activeWir
     if (isPanning) {
       setPan({ x: e.clientX - panStartRef.current.x, y: e.clientY - panStartRef.current.y });
     }
+    if (drawingWire) {
+      const rect = canvasRef.current.getBoundingClientRect();
+      setMousePos({
+        x: (e.clientX - rect.left - panRef.current.x) / scaleRef.current,
+        y: (e.clientY - rect.top - panRef.current.y) / scaleRef.current,
+      });
+    }
   };
 
   const handleMouseUp = () => setIsPanning(false);
@@ -220,9 +232,10 @@ const Canvas = ({ gates, setGates, wires, setWires, onGateStateToggle, activeWir
         rect: { width: rect.width, height: rect.height },
         pan,
         scale,
+        theme,
       });
     }
-  }, [wires, gates, activeWires, pan, scale]);
+  }, [wires, gates, activeWires, pan, scale, theme]);
 
   /* ── Drop zone ── */
   const [, dropRef] = useDrop(() => ({
@@ -236,6 +249,15 @@ const Canvas = ({ gates, setGates, wires, setWires, onGateStateToggle, activeWir
       const dragType = monitor.getItemType();
 
       if (dragType === 'NEW_GATE') {
+        if (item.type === 'INPUT') {
+          const inputCount = gates.filter(g => g.type === 'INPUT').length;
+          if (inputCount >= 4) {
+            triggerFeedback('error');
+            setShowInputLimitModal(true);
+            return;
+          }
+        }
+        triggerFeedback('click');
         setGates(prev => [...prev, {
           id: `gate_${Date.now()}`,
           type: item.type,           // e.g. 'AND', 'INPUT', 'OUTPUT'…
@@ -265,6 +287,7 @@ const Canvas = ({ gates, setGates, wires, setWires, onGateStateToggle, activeWir
 
       // Both pins are outputs → show output-to-output warning modal
       if (drawingWire.pinType === 'output' && pinType === 'output') {
+        triggerFeedback('error');
         setShowOutputToOutputModal(true);
         setDrawingWire(null);
         return;
@@ -272,6 +295,7 @@ const Canvas = ({ gates, setGates, wires, setWires, onGateStateToggle, activeWir
 
       // Both pins are inputs → show input-to-input error modal
       if (drawingWire.pinType === 'input' && pinType === 'input') {
+        triggerFeedback('error');
         setShowInputToInputModal(true);
         setDrawingWire(null);
         return;
@@ -288,8 +312,10 @@ const Canvas = ({ gates, setGates, wires, setWires, onGateStateToggle, activeWir
       );
 
       if (existingWire) {
+        triggerFeedback('delete');
         setWires(prev => prev.filter(w => w.id !== existingWire.id));
       } else {
+        triggerFeedback('connect');
         setWires(prev => [...prev, {
           id: `wire_${Date.now()}`,
           fromGateId: fromPin.gateId, fromPin: fromPin.pinId,
@@ -321,7 +347,8 @@ const Canvas = ({ gates, setGates, wires, setWires, onGateStateToggle, activeWir
 
     const isHigh = val === 1;
     const isLow  = val === 0;
-    const color  = isHigh ? '#39ff14' : isLow ? '#334eaa' : 'rgba(255,255,255,0.15)';
+    const isLight = theme === 'light';
+    const color  = isHigh ? '#39ff14' : isLow ? (isLight ? '#475569' : '#334eaa') : (isLight ? 'rgba(0,0,0,0.2)' : 'rgba(255,255,255,0.15)');
     const glow   = isHigh ? '0 0 6px #39ff14, 0 0 14px rgba(57,255,20,0.4)' : 'none';
 
     return (
@@ -354,10 +381,12 @@ const Canvas = ({ gates, setGates, wires, setWires, onGateStateToggle, activeWir
       onMouseLeave={handleMouseUp}
       style={{
         minHeight: '600px',
-        backgroundPosition: `${pan.x}px ${pan.y}px`,
-        backgroundSize: `${28 * scale}px ${28 * scale}px`,
-        border: drawingWire ? '1.5px solid rgba(0,212,255,0.5)' : '1.5px solid rgba(255,255,255,0.06)',
-        boxShadow: drawingWire ? '0 0 20px rgba(0,212,255,0.15) inset' : '0 4px 30px rgba(0,0,0,0.4) inset',
+        backgroundPosition: `${pan.x}px ${pan.y}px, ${pan.x}px ${pan.y}px, ${pan.x}px ${pan.y}px`,
+        backgroundSize: `${112 * scale}px ${112 * scale}px, ${112 * scale}px ${112 * scale}px, ${28 * scale}px ${28 * scale}px`,
+        border: drawingWire ? '2px solid var(--neon-blue)' : '2px solid var(--c-border)',
+        boxShadow: drawingWire 
+          ? '0 0 30px rgba(0,212,255,0.2) inset' 
+          : '0 10px 40px -10px rgba(0,0,0,0.2) inset, 0 4px 6px -2px rgba(0,0,0,0.05)',
         cursor: drawingWire ? 'crosshair' : 'default',
         transition: 'border-color 0.3s, box-shadow 0.3s',
       }}
@@ -369,6 +398,24 @@ const Canvas = ({ gates, setGates, wires, setWires, onGateStateToggle, activeWir
       <svg className="absolute top-0 left-0 w-full h-full pointer-events-none z-20 overflow-visible">
         <g className="pointer-events-auto" style={{ transform: `translate(${pan.x}px, ${pan.y}px) scale(${scale})`, transformOrigin: '0 0' }}>
           {renderWires()}
+          {/* Ongoing connection line */}
+          {drawingWire && (() => {
+            const gate = gates.find(g => g.id === drawingWire.gateId);
+            if (!gate) return null;
+            const start = pinCenter(gate, drawingWire.pinId);
+            const isLight = theme === 'light';
+            const color = isLight ? 'rgba(0,130,180,0.45)' : 'rgba(0,212,255,0.4)';
+            return (
+              <path
+                d={`M ${start.x} ${start.y} C ${start.x + (drawingWire.pinType==='output'?50:-50)} ${start.y}, ${mousePos.x + (drawingWire.pinType==='output'?-50:50)} ${mousePos.y}, ${mousePos.x} ${mousePos.y}`}
+                fill="none"
+                stroke={color}
+                strokeWidth="2"
+                strokeDasharray="5,5"
+                className="animate-pulse"
+              />
+            );
+          })()}
         </g>
       </svg>
 
@@ -393,6 +440,7 @@ const Canvas = ({ gates, setGates, wires, setWires, onGateStateToggle, activeWir
                 onDelete={handleDeleteGate}
                 computedValue={computedGateValues ? computedGateValues[gate.id] : null}
                 isReadOnly={isReadOnly}
+                showBinaryOutput={showBinaryOutput}
               />
             );
           })}
@@ -402,7 +450,7 @@ const Canvas = ({ gates, setGates, wires, setWires, onGateStateToggle, activeWir
       {/* Wire drawing indicator */}
       {drawingWire && (
         <div className="absolute top-3 left-1/2 -translate-x-1/2 flex items-center gap-2 px-4 py-1.5 rounded-full text-sm font-semibold z-50 animate-pulse-glow"
-             style={{ background: 'rgba(0,212,255,0.15)', border: '1px solid rgba(0,212,255,0.5)', color: 'var(--neon-blue)' }}>
+             style={{ background: 'var(--c-glass)', border: '1px solid rgba(0,212,255,0.5)', color: 'var(--neon-blue)' }}>
           <span className="w-2 h-2 rounded-full bg-[var(--neon-blue)] animate-pulse-glow" />
           Wiring mode — click another pin to connect
           <button className="ml-1 text-xs opacity-60 hover:opacity-100" onClick={() => setDrawingWire(null)}>✕</button>
@@ -413,7 +461,7 @@ const Canvas = ({ gates, setGates, wires, setWires, onGateStateToggle, activeWir
       {gates.length === 0 && (
         <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none select-none">
           <div className="text-5xl mb-3 opacity-20 animate-float">⚡</div>
-          <p className="text-slate-600 text-sm font-medium">Drag gates here to start building</p>
+          <p className="text-sm font-bold" style={{ color: 'var(--c-text-muted)' }}>Drag gates here to start building</p>
         </div>
       )}
 
@@ -421,12 +469,12 @@ const Canvas = ({ gates, setGates, wires, setWires, onGateStateToggle, activeWir
       <button
         className="absolute bottom-20 lg:bottom-4 right-4 flex items-center justify-center px-5 py-2.5 rounded-xl transition-all duration-200 z-50 group hover:-translate-y-0.5 hover:shadow-lg"
         style={{
-          background: 'rgba(13,26,45,0.85)',
+          background: 'var(--c-surface)',
           backdropFilter: 'blur(8px)',
-          border: '1px solid rgba(0,212,255,0.3)',
-          boxShadow: '0 4px 12px rgba(0,0,0,0.5)',
+          border: '1px solid var(--c-border)',
+          boxShadow: '0 4px 12px var(--shadow-sm)',
           color: 'var(--neon-blue)',
-          textShadow: '0 0 8px rgba(0,212,255,0.3)'
+          textShadow: '0 0 8px color-mix(in srgb, var(--neon-blue), transparent 70%)'
         }}
         onClick={(e) => { e.stopPropagation(); setScale(1); setPan({ x: 0, y: 0 }); }}
         title="Recenter the canvas to the default view"
@@ -442,6 +490,7 @@ const Canvas = ({ gates, setGates, wires, setWires, onGateStateToggle, activeWir
         confirmLabel="Delete"
         danger
         onConfirm={() => {
+          triggerFeedback('delete');
           setWires(prev => prev.filter(w => w.id !== wireToDelete));
           setWireToDelete(null);
         }}
@@ -456,11 +505,11 @@ const Canvas = ({ gates, setGates, wires, setWires, onGateStateToggle, activeWir
         confirmLabel="Got it"
         hideCancel
         danger={false}
-        onConfirm={() => setShowOutputToOutputModal(false)}
-        onCancel={() => setShowOutputToOutputModal(false)}
+        onConfirm={() => { triggerFeedback('click'); setShowOutputToOutputModal(false); }}
+        onCancel={() => { triggerFeedback('click'); setShowOutputToOutputModal(false); }}
       />
 
-      {/* Input-to-Input Connection Error */}
+      {/* Input Limit Connection Error */}
       <ConfirmModal
         isOpen={showInputToInputModal}
         title="Cannot Connect Input to Input"
@@ -470,6 +519,17 @@ const Canvas = ({ gates, setGates, wires, setWires, onGateStateToggle, activeWir
         danger
         onConfirm={() => setShowInputToInputModal(false)}
         onCancel={() => setShowInputToInputModal(false)}
+      />
+
+      {/* Input Component Limit Modal */}
+      <ConfirmModal
+        isOpen={showInputLimitModal}
+        title="Input Limit Reached"
+        message="You can only have up to 4 input components (switches/buttons) in a single circuit. Please remove an existing input to add a new one."
+        confirmLabel="Understood"
+        hideCancel
+        onConfirm={() => setShowInputLimitModal(false)}
+        onCancel={() => setShowInputLimitModal(false)}
       />
     </div>
   );

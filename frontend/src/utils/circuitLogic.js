@@ -42,6 +42,7 @@ export const evaluateGate = (type, inputs) => {
         case 'NAND':   return inputs.every(v => v === 1) ? 0 : 1;
         case 'NOR':    return inputs.some(v => v === 1) ? 0 : 1;
         case 'XOR':    return inputs.reduce((a, b) => a ^ b) === 1 ? 1 : 0;
+        case 'XNOR':   return inputs.reduce((a, b) => a ^ b) === 0 ? 1 : 0;
         case 'INPUT':  return inputs[0]; // pass-through state
         case 'OUTPUT': return inputs[0]; // display input
         default:       return null;

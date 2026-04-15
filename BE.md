@@ -1,6 +1,6 @@
-**======================================**
+======================================
 
-**BE:**
+BE commands:
 
 cd backend
 
@@ -10,7 +10,7 @@ python -m uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 
 
 
-**FE:**
+FE commands:
 
 cd frontend
 
@@ -18,15 +18,16 @@ npm run dev -- --host
 
 
 
-**PC View:**
+PC View:
+(localhost)
 
-\- http://127.0.0.1:5137 (localhost)
+\- http://127.0.0.1:5137 
 
 \- http://localhost:5137
 
 
 
-**Mobile View:** (\*works on same network/internet, dynamic)
+Mobile View: (\*works on same network/internet, dynamic)
 
 \- http://192.168.56.1:5137 (sample)
 
@@ -36,7 +37,7 @@ npm run dev -- --host
 
 ======================================
 
-**Test teacher acc:**
+Test teacher acc:
 
 admin\_teacher
 
@@ -54,65 +55,73 @@ teacher\_mark
 
 mark123
 
-
-
-**======================================**
-
-**Essential:**
-
-\- running mobile live view 
-
-\- XNOR gate
-
-\- question mark icon in My Classes that when toggled displays info about what is My class all about and how it works (a little info icon and about what is about being enrolled in a class
-
-\- 
-
-
-
-**======================================**
-
-**Update feature:**
-
-\- add light mode (dark mode already exist and fine)
-
-\- a modal should pop up when connecting an out pin of an input component to an out pin of any gate in the canvas (same modal with the confirm delete of gate modal), as well as connecting an input to input should prompt a error modal that says cannot connect input to input. 
-
-\- adding XNOR gate (UI sonnet | func,UX Pro 3.1)
-
-\- implement a report generating feature for student to have a soft copy of its work, and then with the logical gate made by the player also the truth table, and timestamp(the date it is generated, name, 
-
-* 
-
-
-
-**======================================**
-
-**Error:**
-
-\- 
-
-
-
-**======================================**
-
-**Bug:**
-
-\- 
-
+Class Code
+Y3A01S
+7MKYKO
+DM95AJ
 
 
 ======================================
 
-Note:
+Essentials:
+
+\- running mobile live view
+
+* Preview of the saved circuit
+* Preview of circuit in the submission review modal
+
+
+======================================
+
+Update features:
+
+\- implement a report generating feature for student to have a soft copy of its work, and then with the logical gate made by the player also the truth table, and timestamp(the date it is generated, name,)
+
+- Fixed sidebar for student account
+- Edit username and password for teacher account, also for student account
+- 
+
+======================================
+
+Error:
+
+\-
+
+
+======================================
+
+Bug:
+
+* teacher view => player are logged as enrolled students - invalid?
+* single student can submit the same assignment multiple times
+* single assignmen tcan be graded unlimited times, put already submitted message if so
+* class assignment from an already unenrolled class still appears
+* fix teacher checking/grading UI
+
+
+======================================
+
+Notes:
 
 \- maximum of 2-4 input (gates) (AND, OR, NOT => priority) (extra => NAND, NOR, XOR, XNOR), only one output
 
-\- XNOR gate is missing 
-
 \- adding light mode for user adaptability and personalization (when claude sonnet resets)
 
-\- the logo should look  like, minimal, modern, clean, techy, and has color palette of blue, white, etc. (calming color palette) 
+\- the logo should look  like, minimal, modern, clean, techy, and has color palette of blue, white, etc. (calming color palette)
+
+- teacher can regenerate the join code
+
+secretkey
+
+======================================
+
+Questions:
+
+- 
+- 
+- 
 
 
-
+==================================================================
+Global Disable: Added user-select: none; to the body element in index.css file. This tells the browser to prevent text selection for any element inside the body by default. This is what stops the annoying blue highlights when you click and drag gates.
+Selective Enable: Since still want to be able to type in things like the "Save Circuit" modal, added a rule to re-enable text selection specifically for input and textarea elements.

@@ -16,21 +16,22 @@ import BottomSheet from '../components/BottomSheet.jsx';
 import SubmitAssignmentModal from '../components/SubmitAssignmentModal.jsx';
 import ReportCardModal from '../components/ReportCardModal.jsx';
 import { useToast } from '../components/ToastNotification.jsx';
+import { triggerFeedback } from '../utils/feedback';
 import { validateCircuitConnections, evaluateCircuit } from '../utils/circuitLogic';
 import { saveCircuit, getUser, getCircuits } from '../utils/api';
 
 /* ── Animated Play/Stop Button ── */
 const SimButton = ({ isPlaying, onClick }) => (
-  <button onClick={onClick}
-          className="w-full py-3 rounded-xl font-black text-base flex items-center justify-center gap-2 transition-all duration-300 hover:scale-[1.02]"
+  <button onClick={() => { triggerFeedback('click'); onClick(); }}
+          className="w-full py-3 rounded-xl font-semibold text-sm flex items-center justify-center gap-2 transition-all duration-300 hover:scale-[1.02]"
           style={{
             background: isPlaying
-              ? 'linear-gradient(135deg, #7f1d1d, #ff3366)'
-              : 'linear-gradient(135deg, #14532d, #39ff14)',
-            border: `1.5px solid ${isPlaying ? 'rgba(255,51,102,0.5)' : 'rgba(57,255,20,0.5)'}`,
+              ? 'linear-gradient(135deg, #7f1d1d, var(--neon-red))'
+              : 'linear-gradient(135deg, #14532d, var(--neon-green))',
+            border: `1.5px solid ${isPlaying ? 'color-mix(in srgb, var(--neon-red), transparent 50%)' : 'color-mix(in srgb, var(--neon-green), transparent 50%)'}`,
             boxShadow: isPlaying
-              ? '0 0 20px rgba(255,51,102,0.3)'
-              : '0 0 20px rgba(57,255,20,0.3)',
+              ? '0 0 20px color-mix(in srgb, var(--neon-red), transparent 70%)'
+              : '0 0 20px color-mix(in srgb, var(--neon-green), transparent 70%)',
             color: '#fff',
           }}>
     {isPlaying ? (
@@ -53,8 +54,8 @@ const FeedbackBanner = ({ feedback }) => {
   const isSuccess = feedback.toLowerCase().includes('success') || feedback.toLowerCase().includes('score: 100');
   const isError   = feedback.toLowerCase().includes('error');
   const color  = isSuccess ? 'var(--neon-green)' : isError ? 'var(--neon-red)' : 'var(--neon-blue)';
-  const border = isSuccess ? 'rgba(57,255,20,0.3)' : isError ? 'rgba(255,51,102,0.3)' : 'rgba(0,212,255,0.3)';
-  const bg     = isSuccess ? 'rgba(57,255,20,0.06)' : isError ? 'rgba(255,51,102,0.06)' : 'rgba(0,212,255,0.06)';
+  const border = isSuccess ? 'color-mix(in srgb, var(--neon-green), transparent 70%)' : isError ? 'color-mix(in srgb, var(--neon-red), transparent 70%)' : 'color-mix(in srgb, var(--neon-blue), transparent 70%)';
+  const bg     = isSuccess ? 'color-mix(in srgb, var(--neon-green), transparent 94%)' : isError ? 'color-mix(in srgb, var(--neon-red), transparent 94%)' : 'color-mix(in srgb, var(--neon-blue), transparent 94%)';
 
   return (
     <div className="px-3 py-2.5 rounded-xl text-xs font-medium leading-relaxed animate-slide-up"
@@ -67,10 +68,14 @@ const FeedbackBanner = ({ feedback }) => {
 
 /* ── Stats Row ── */
 const StatChip = ({ label, value, color }) => (
-  <div className="flex flex-col items-center px-3 py-2 rounded-lg"
-       style={{ background: `${color}0f`, border: `1px solid ${color}25` }}>
+  <div className="flex flex-col items-center px-3 py-2 rounded-xl transition-all duration-200"
+       style={{ 
+         background: 'var(--c-surface-2)', 
+         border: `1px solid color-mix(in srgb, ${color}, transparent 75%)`,
+         boxShadow: `0 4px 12px color-mix(in srgb, ${color}, transparent 96%)`
+       }}>
     <span className="text-base font-black" style={{ color }}>{value}</span>
-    <span className="text-[10px] text-slate-500 uppercase tracking-wide">{label}</span>
+    <span className="text-[10px] uppercase tracking-wider font-bold" style={{ color: 'var(--c-text-muted)' }}>{label}</span>
   </div>
 );
 
@@ -109,6 +114,7 @@ const Playground = () => {
   const [savedCircuitCount, setSavedCircuitCount] = useState(0);
   const [showSubmitModal, setShowSubmitModal]     = useState(false);
   const [reportCardData, setReportCardData]       = useState(null);
+  const [showBinaryOutput, setShowBinaryOutput]   = useState(false);
   // Flag to skip the first gates/wires effect after a circuit load (prevents false unsaved-changes)
   const skipNextChangeRef = useRef(false);
 
@@ -242,9 +248,11 @@ const Playground = () => {
     }
     const currentHash = getCircuitHash(gates, wires);
     if (lastSavedCircuitRef.current === currentHash) {
+      triggerFeedback('error');
       addToast('info', 'This exact circuit is already saved!');
       return;
     }
+    triggerFeedback('click');
     setShowSaveModal(true);
   };
 
@@ -273,6 +281,7 @@ const Playground = () => {
       addToast('info', 'Nothing to clear — canvas is already empty!');
       return;
     }
+    triggerFeedback('delete');
     setGates([]); setWires([]); setActiveWires(null);
     setComputedGateValues(null); setFeedback('');
     if (isPlaying) stopSimulation();
@@ -297,7 +306,7 @@ const Playground = () => {
 
         {/* ── Gamification HUD ── */}
         <div className="px-2 sm:px-4 pt-1.5 sm:pt-3 pb-1 sm:pb-2 flex items-center justify-between flex-wrap gap-2"
-             style={{ borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
+             style={{ borderBottom: '1px solid var(--c-border-dim)' }}>
           <Gamification
             points={profileData.points || 0}
             level={profileData.level || 1}
@@ -305,10 +314,10 @@ const Playground = () => {
           />
           {selectedChallenge && (
             <div className="flex items-center gap-2 px-4 py-1.5 rounded-xl text-sm animate-slide-in-right"
-                 style={{ background: 'rgba(0,212,255,0.07)', border: '1px solid rgba(0,212,255,0.2)' }}>
-              <span style={{ color: 'var(--neon-blue)' }}>📋</span>
-              <span className="text-white font-semibold text-xs">{selectedChallenge.title}</span>
-              <button className="text-slate-600 hover:text-slate-300 text-xs ml-1" onClick={() => setSelectedChallenge(null)}>✕</button>
+                 style={{ background: 'color-mix(in srgb, var(--neon-blue), transparent 93%)', border: '1px solid color-mix(in srgb, var(--neon-blue), transparent 75%)' }}>
+              <span className="text-xs" style={{ color: 'var(--neon-blue)' }}>📋</span>
+              <span className="font-bold text-xs" style={{ color: 'var(--c-text)' }}>{selectedChallenge.title}</span>
+              <button className="hover:opacity-60 transition-opacity text-xs ml-1" style={{ color: 'var(--c-text-muted)' }} onClick={() => setSelectedChallenge(null)}>✕</button>
             </div>
           )}
         </div>
@@ -318,7 +327,7 @@ const Playground = () => {
 
           {/* Left: Toolbar only (hidden on mobile, shows on desktop) */}
           {!viewMode && (
-            <div className="flex-shrink-0 relative z-50 w-full lg:w-[200px]">
+            <div className="flex-shrink-0 relative z-50 w-full lg:w-48 xl:w-56">
               <Toolbar />
             </div>
           )}
@@ -334,6 +343,7 @@ const Playground = () => {
             computedGateValues={computedGateValues}
             resetViewTrigger={resetViewTrigger}
             isReadOnly={viewMode}
+            showBinaryOutput={showBinaryOutput}
           />
 
           {/* Right: Tabbed Panel + Challenge List — desktop only */}
@@ -350,7 +360,7 @@ const Playground = () => {
                   </div>
                   <SimButton isPlaying={isPlaying} onClick={isPlaying ? stopSimulation : startSimulation} />
                   <button 
-                    onClick={() => { setViewMode(false); setSelectedChallenge(null); }} 
+                    onClick={() => { triggerFeedback('click'); setViewMode(false); setSelectedChallenge(null); }} 
                     className="btn-primary w-full py-2 text-xs font-bold uppercase tracking-widest shadow-glow-blue"
                   >
                     Close View Mode
@@ -360,26 +370,24 @@ const Playground = () => {
                 <div className="section-divider" />
 
                 {/* Circuit Name */}
-                {selectedChallenge?.title && (
                   <div className="flex flex-col gap-0.5 animate-fade-in px-1 mb-3">
-                    <p className="text-[9px] font-black uppercase tracking-widest text-slate-500">Circuit Name</p>
-                    <span className="text-sm font-bold text-white truncate w-full" title={selectedChallenge.title}>
+                    <p className="text-[9px] font-black uppercase tracking-widest" style={{ color: 'var(--c-text-muted)' }}>Circuit Name</p>
+                    <span className="text-sm font-black truncate w-full" style={{ color: 'var(--c-text)' }} title={selectedChallenge.title}>
                       {selectedChallenge.title}
                     </span>
                   </div>
-                )}
                 {/* Truth Table — always visible in view mode */}
                 <div className="flex flex-col gap-1.5 animate-fade-in">
-                  <p className="text-[9px] font-black uppercase tracking-widest text-slate-500 px-1">Truth Table</p>
+                  <p className="text-[9px] font-black uppercase tracking-widest px-1" style={{ color: 'var(--c-text-muted)' }}>Truth Table</p>
                   <div className="rounded-xl overflow-hidden"
-                       style={{ background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.05)' }}>
+                       style={{ background: 'var(--c-surface-2)', border: '1px solid var(--c-border-dim)' }}>
                     <TruthTable gates={gates} wires={wires} />
                   </div>
                 </div>
 
                 {/* Circuit Stats — always visible in view mode */}
                 <div className="flex flex-col gap-2 animate-fade-in">
-                  <p className="text-[9px] font-black uppercase tracking-widest text-slate-500 px-1">Circuit Info</p>
+                  <p className="text-[9px] font-black uppercase tracking-widest px-1" style={{ color: 'var(--c-text-muted)' }}>Circuit Info</p>
                   <div className="grid grid-cols-2 gap-2">
                     <StatChip label="Gates"   value={gates.filter(g => g.type !== 'INPUT' && g.type !== 'OUTPUT').length} color="var(--neon-blue)" />
                     <StatChip label="Wires"   value={wires.length} color="var(--neon-green)" />
@@ -387,14 +395,14 @@ const Playground = () => {
                     <StatChip label="Outputs" value={gates.filter(g => g.type === 'OUTPUT').length} color="var(--neon-red)" />
                   </div>
                   {computedGateValues && gates.filter(g => g.type === 'OUTPUT').length > 0 && (
-                    <div className="rounded-xl p-3" style={{ background: 'rgba(0,0,0,0.25)', border: '1px solid rgba(255,255,255,0.05)' }}>
-                      <p className="text-[9px] text-slate-500 uppercase tracking-widest mb-2">Output States</p>
+                    <div className="rounded-xl p-3 shadow-sm border" style={{ background: 'var(--c-surface-2)', borderColor: 'var(--c-border-dim)' }}>
+                      <p className="text-[9px] uppercase tracking-[0.1em] font-black mb-2 px-0.5" style={{ color: 'var(--c-text-muted)' }}>Output States</p>
                       {gates.filter(g => g.type === 'OUTPUT').map((g, i) => {
                         const val = computedGateValues[g.id];
                         return (
-                          <div key={g.id} className="flex items-center justify-between mb-1">
-                            <span className="text-xs text-slate-400">Output {i + 1}</span>
-                            <span className="font-black text-sm" style={{ color: val === 1 ? 'var(--neon-green)' : 'rgba(255,51,102,0.7)' }}>
+                          <div key={g.id} className="flex items-center justify-between mb-1.5 last:mb-0">
+                            <span className="text-xs font-medium" style={{ color: 'var(--c-text)' }}>Output {i + 1}</span>
+                            <span className="font-black text-xs" style={{ color: val === 1 ? 'var(--neon-green)' : '#ef4444' }}>
                               {val === 1 ? 'HIGH' : val === 0 ? 'LOW' : '—'}
                             </span>
                           </div>
@@ -407,14 +415,14 @@ const Playground = () => {
             ) : (
               <>
                 {/* Tab buttons */}
-                <div className="flex gap-1 p-1 rounded-xl" style={{ background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.05)' }}>
+                <div className="flex gap-1 p-1 rounded-xl" style={{ background: 'var(--c-surface-2)', border: '1px solid var(--c-border-dim)' }}>
                   {TABS.map(tab => (
                     <button key={tab}
-                            onClick={() => setActiveTab(tab)}
+                            onClick={() => { triggerFeedback('click'); setActiveTab(tab); }}
                             className="flex-1 py-1.5 text-[10px] font-bold rounded-lg transition-all duration-200"
                             style={{
                               background: activeTab === tab ? 'rgba(0,212,255,0.15)' : 'transparent',
-                              color: activeTab === tab ? 'var(--neon-blue)' : 'rgba(255,255,255,0.35)',
+                              color: activeTab === tab ? 'var(--neon-blue)' : 'var(--c-text-muted)',
                               border: activeTab === tab ? '1px solid rgba(0,212,255,0.3)' : '1px solid transparent',
                             }}>
                       {tab}
@@ -427,7 +435,7 @@ const Playground = () => {
                   <div className="flex flex-col gap-3 animate-fade-in">
                     <SimButton isPlaying={isPlaying} onClick={isPlaying ? stopSimulation : startSimulation} />
 
-                    <button onClick={handleGrade} disabled={grading || gates.length === 0}
+                    <button onClick={() => { triggerFeedback('click'); handleGrade(); }} disabled={grading || gates.length === 0}
                             className="btn-primary w-full py-2.5 text-sm disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
                             style={{ background: grading ? 'rgba(59,130,246,0.3)' : undefined }}>
                       {grading ? (
@@ -460,26 +468,41 @@ const Playground = () => {
                     </button>
 
                     {!isTeacher && (
-                      <button onClick={() => {
-                        if (gates.length === 0) { addToast('error', 'Build a circuit first before submitting!'); return; }
-                        setShowSubmitModal(true);
-                      }}
-                        className="w-full py-2 text-sm font-bold flex items-center justify-center gap-2 rounded-xl transition-all duration-200 hover:scale-[1.02]"
-                        style={{
-                          background: 'rgba(124,58,237,0.15)',
-                          border: '1px solid rgba(124,58,237,0.35)',
-                          color: '#a78bfa',
-                        }}>
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-                          <polyline points="17 8 12 3 7 8"/>
-                          <line x1="12" y1="3" x2="12" y2="15"/>
-                        </svg>
-                        Submit to Assignment
-                      </button>
+                      <div className="relative group">
+                        <button 
+                          onClick={() => {
+                            triggerFeedback('click');
+                            if (gates.length === 0) { addToast('error', 'Build a circuit first before submitting!'); return; }
+                            setShowSubmitModal(true);
+                          }}
+                          disabled={!(profileData.enrollments?.length > 0)}
+                          title={!(profileData.enrollments?.length > 0) ? "Join a classroom to submit assignments" : ""}
+                          className="w-full py-2.5 text-sm font-semibold flex items-center justify-center gap-2 rounded-xl transition-all duration-200 disabled:cursor-not-allowed disabled:hover:scale-100 hover:scale-[1.02] active:scale-95"
+                          style={{
+                            background: !(profileData.enrollments?.length > 0) 
+                              ? 'var(--c-surface-2)' 
+                              : 'linear-gradient(135deg, #4f46e5, #818cf8)',
+                            color: !(profileData.enrollments?.length > 0) ? 'var(--c-text-muted)' : 'white',
+                            opacity: !(profileData.enrollments?.length > 0) ? 0.8 : 1,
+                            border: '1px solid var(--c-border-dim)',
+                            boxShadow: !(profileData.enrollments?.length > 0) ? 'none' : '0 4px 15px rgba(79,70,229,0.4)',
+                          }}>
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                            <polyline points="17 8 12 3 7 8"/>
+                            <line x1="12" y1="3" x2="12" y2="15"/>
+                          </svg>
+                          Submit to Assignment
+                        </button>
+                        {!(profileData.enrollments?.length > 0) && (
+                          <div className="hidden group-hover:block absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 bg-black/90 text-[10px] text-white rounded whitespace-nowrap pointer-events-none z-[60]">
+                            Join a classroom to submit
+                          </div>
+                        )}
+                      </div>
                     )}
 
-                    <button onClick={() => setShowClearConfirm(true)} className="btn-danger w-full py-2 text-sm flex items-center justify-center gap-2">
+                    <button onClick={() => { triggerFeedback('click'); setShowClearConfirm(true); }} className="btn-danger w-full py-2 text-sm flex items-center justify-center gap-2">
                       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                         <polyline points="3 6 5 6 21 6" />
                         <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
@@ -496,7 +519,7 @@ const Playground = () => {
                 {/* Truth Table Tab */}
                 {activeTab === 'Truth Table' && (
                   <div className="animate-fade-in rounded-xl overflow-hidden"
-                       style={{ background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.05)' }}>
+                       style={{ background: 'var(--c-surface-2)', border: '1px solid var(--c-border-dim)' }}>
                     <TruthTable gates={gates} wires={wires} />
                   </div>
                 )}
@@ -511,15 +534,60 @@ const Playground = () => {
                       <StatChip label="Outputs" value={gates.filter(g=>g.type==='OUTPUT').length} color="var(--neon-red)" />
                     </div>
 
+                    <div className="flex flex-col gap-2 p-3 rounded-xl border" style={{ background: 'var(--c-surface-2)', borderColor: 'var(--c-border-dim)' }}>
+                      <div className="flex items-center justify-between">
+                        <span className="text-[10px] font-black uppercase tracking-wider" style={{ color: 'var(--c-text-muted)' }}>Output Mode</span>
+                        <div className="flex gap-1.5 bg-black/10 dark:bg-black/40 p-1.5 rounded-xl border border-black/5 dark:border-white/5">
+                          <button 
+                            onClick={() => { triggerFeedback('click'); setShowBinaryOutput(false); }}
+                            className={`px-3 py-1 text-[9px] font-black rounded-lg transition-all duration-300 transform active:scale-95`}
+                            style={{
+                              background: !showBinaryOutput 
+                                ? 'rgba(57, 255, 20, 0.25)' 
+                                : 'rgba(239, 68, 68, 0.12)',
+                              color: !showBinaryOutput ? 'var(--neon-green)' : '#ef4444',
+                              boxShadow: !showBinaryOutput 
+                                ? '0 0 15px rgba(57, 255, 20, 0.4), inset 0 0 5px rgba(255,255,255,0.2)' 
+                                : '0 0 8px rgba(239, 68, 68, 0.15)',
+                              border: `1.5px solid ${!showBinaryOutput ? 'rgba(57, 255, 20, 0.4)' : 'rgba(239, 68, 68, 0.2)'}`,
+                              textShadow: !showBinaryOutput ? '0 0 8px rgba(57, 255, 20, 0.6)' : 'none',
+                              opacity: !showBinaryOutput ? 1 : 0.6
+                            }}
+                          >
+                            LED
+                          </button>
+                          <button 
+                            onClick={() => { triggerFeedback('click'); setShowBinaryOutput(true); }}
+                            className={`px-3 py-1 text-[9px] font-black rounded-lg transition-all duration-300 transform active:scale-95`}
+                            style={{
+                              background: showBinaryOutput 
+                                ? 'rgba(57, 255, 20, 0.25)' 
+                                : 'rgba(239, 68, 68, 0.12)',
+                              color: showBinaryOutput ? 'var(--neon-green)' : '#ef4444',
+                              boxShadow: showBinaryOutput 
+                                ? '0 0 15px rgba(57, 255, 20, 0.4), inset 0 0 5px rgba(255,255,255,0.2)' 
+                                : '0 0 8px rgba(239, 68, 68, 0.15)',
+                              border: `1.5px solid ${showBinaryOutput ? 'rgba(57, 255, 20, 0.4)' : 'rgba(239, 68, 68, 0.2)'}`,
+                              textShadow: showBinaryOutput ? '0 0 8px rgba(57, 255, 20, 0.6)' : 'none',
+                              opacity: showBinaryOutput ? 1 : 0.6
+                            }}
+                          >
+                            0 / 1
+                          </button>
+                        </div>
+                      </div>
+                      <p className="text-[9px] text-slate-500 leading-tight">Switch between visual LED and numeric indicators.</p>
+                    </div>
+
                     {computedGateValues && gates.filter(g=>g.type==='OUTPUT').length > 0 && (
-                      <div className="rounded-xl p-3" style={{ background: 'rgba(0,0,0,0.25)', border: '1px solid rgba(255,255,255,0.05)' }}>
-                        <p className="text-[10px] text-slate-500 uppercase tracking-widest mb-2">Output States</p>
+                      <div className="rounded-xl p-3 shadow-sm border" style={{ background: 'var(--c-surface-2)', borderColor: 'var(--c-border-dim)' }}>
+                        <p className="text-[10px] text-slate-500 uppercase tracking-[0.1em] font-black mb-2 px-0.5" style={{ color: 'var(--c-text-muted)' }}>Output States</p>
                         {gates.filter(g=>g.type==='OUTPUT').map((g,i) => {
                           const val = computedGateValues[g.id];
                           return (
-                            <div key={g.id} className="flex items-center justify-between mb-1">
-                              <span className="text-xs text-slate-400">Output {i+1}</span>
-                              <span className="font-black text-sm" style={{ color: val===1 ? 'var(--neon-green)' : 'rgba(255,51,102,0.7)' }}>
+                            <div key={g.id} className="flex items-center justify-between mb-1.5 last:mb-0">
+                              <span className="text-xs font-medium" style={{ color: 'var(--c-text)' }}>Output {i+1}</span>
+                              <span className="font-black text-xs" style={{ color: val===1 ? 'var(--neon-green)' : '#ef4444' }}>
                                 {val === 1 ? 'HIGH' : val === 0 ? 'LOW' : '—'}
                               </span>
                             </div>
@@ -539,6 +607,44 @@ const Playground = () => {
                   }}
                   selectedChallengeId={selectedChallenge?.id}
                 />
+
+                {/* ── Scroll to Top (Desktop Sidebar) ── */}
+                <div className="flex justify-center mt-6 mb-8">
+                  <button
+                    onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+                    className="group relative flex items-center h-10 w-10 hover:w-44 rounded-full overflow-hidden border active:scale-95"
+                    style={{
+                      background: 'color-mix(in srgb, var(--neon-blue), transparent 92%)',
+                      borderColor: 'color-mix(in srgb, var(--neon-blue), transparent 75%)',
+                      color: 'var(--neon-blue)',
+                      transition: 'width 0.45s cubic-bezier(0.34,1.56,0.64,1), box-shadow 0.3s ease, border-color 0.3s ease, background 0.3s ease',
+                    }}
+                    onMouseEnter={e => {
+                      e.currentTarget.style.boxShadow = '0 0 18px rgba(0,212,255,0.3), 0 0 40px rgba(0,212,255,0.08)';
+                      e.currentTarget.style.borderColor = 'rgba(0,212,255,0.6)';
+                      e.currentTarget.style.background = 'rgba(0,212,255,0.14)';
+                    }}
+                    onMouseLeave={e => {
+                      e.currentTarget.style.boxShadow = 'none';
+                      e.currentTarget.style.borderColor = 'rgba(0,212,255,0.25)';
+                      e.currentTarget.style.background = 'rgba(0,212,255,0.08)';
+                    }}
+                  >
+                    {/* Icon — pinned left, always visible */}
+                    <div className="absolute left-0 w-10 h-10 flex items-center justify-center flex-shrink-0">
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round" className="group-hover:-translate-y-0.5 transition-transform duration-300">
+                        <polyline points="18 15 12 9 6 15" />
+                      </svg>
+                    </div>
+                    {/* Text — fades in, offset from icon */}
+                    <span
+                      className="pl-10 pr-4 opacity-0 group-hover:opacity-100 text-[10px] font-black uppercase tracking-[0.12em] whitespace-nowrap select-none"
+                      style={{ transition: 'opacity 0.25s ease 0.15s' }}
+                    >
+                      Scroll to top
+                    </span>
+                  </button>
+                </div>
               </>
             )}
           </div>
@@ -601,14 +707,14 @@ const Playground = () => {
                 <StatChip label="Outputs" value={gates.filter(g => g.type === 'OUTPUT').length} color="var(--neon-red)" />
               </div>
               {computedGateValues && gates.filter(g => g.type === 'OUTPUT').length > 0 && (
-                <div className="rounded-xl p-3" style={{ background: 'rgba(0,0,0,0.25)', border: '1px solid rgba(255,255,255,0.05)' }}>
-                  <p className="text-[9px] text-slate-500 uppercase tracking-widest mb-2">Output States</p>
+                <div className="rounded-xl p-3 shadow-sm border" style={{ background: 'var(--c-surface-2)', borderColor: 'var(--c-border-dim)' }}>
+                  <p className="text-[9px] text-slate-500 uppercase tracking-[0.1em] font-black mb-2 px-0.5" style={{ color: 'var(--c-text-muted)' }}>Output States</p>
                   {gates.filter(g => g.type === 'OUTPUT').map((g, i) => {
                     const val = computedGateValues[g.id];
                     return (
-                      <div key={g.id} className="flex items-center justify-between mb-1">
-                        <span className="text-xs text-slate-400">Output {i + 1}</span>
-                        <span className="font-black text-sm" style={{ color: val === 1 ? 'var(--neon-green)' : 'rgba(255,51,102,0.7)' }}>
+                      <div key={g.id} className="flex items-center justify-between mb-1.5 last:mb-0">
+                        <span className="text-xs font-medium" style={{ color: 'var(--c-text)' }}>Output {i + 1}</span>
+                        <span className="font-black text-xs" style={{ color: val === 1 ? 'var(--neon-green)' : '#ef4444' }}>
                           {val === 1 ? 'HIGH' : val === 0 ? 'LOW' : '—'}
                         </span>
                       </div>
@@ -621,7 +727,7 @@ const Playground = () => {
         ) : (
           <>
             {/* Tab buttons */}
-            <div className="flex gap-1 p-1 rounded-xl mb-3" style={{ background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.05)' }}>
+            <div className="flex gap-1 p-1 rounded-xl mb-3" style={{ background: 'var(--c-surface-2)', border: '1px solid var(--c-border-dim)' }}>
               {TABS.map(tab => (
                 <button key={tab}
                         onClick={() => setActiveTab(tab)}
@@ -639,47 +745,136 @@ const Playground = () => {
               <div className="flex flex-col gap-3">
                 <SimButton isPlaying={isPlaying} onClick={isPlaying ? stopSimulation : startSimulation} />
                 <button onClick={handleGrade} disabled={grading || gates.length === 0}
-                        className="btn-primary w-full py-2.5 text-sm disabled:opacity-50">
-                  {grading ? 'Grading…' : '🎯 Grade Circuit'}
+                        className="btn-primary w-full py-2.5 text-sm disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100">
+                  {grading ? (
+                    <span className="flex items-center justify-center gap-2">
+                      <svg className="animate-spin w-3 h-3" viewBox="0 0 24 24" fill="none">
+                        <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" strokeDasharray="30" strokeDashoffset="10"/>
+                      </svg>
+                      Grading…
+                    </span>
+                  ) : (
+                    <span className="flex items-center justify-center gap-2">
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+                        <polyline points="22 4 12 14.01 9 11.01" />
+                      </svg>
+                      Grade Circuit
+                    </span>
+                  )}
                 </button>
                 <button onClick={handleSave} disabled={!hasUnsavedChanges || gates.length === 0}
-                        className="btn-secondary w-full py-2 text-sm disabled:opacity-50">
-                  💾 Save Circuit
+                        className="btn-secondary w-full py-2 text-sm disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 flex items-center justify-center gap-2">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" />
+                    <polyline points="17 21 17 13 7 13 7 21" />
+                    <polyline points="7 3 7 8 15 8" />
+                  </svg>
+                  Save Circuit
                 </button>
                 {!isTeacher && (
-                  <button onClick={() => {
-                    if (gates.length === 0) { addToast('error', 'Build a circuit first!'); return; }
-                    setShowSubmitModal(true);
-                  }}
-                    className="w-full py-2 text-sm font-bold rounded-xl flex items-center justify-center gap-1.5"
-                    style={{ background: 'rgba(124,58,237,0.15)', border: '1px solid rgba(124,58,237,0.35)', color: '#a78bfa' }}>
-                    📤 Submit to Assignment
+                  <button 
+                    onClick={() => {
+                      if (gates.length === 0) { addToast('error', 'Build a circuit first!'); return; }
+                      setShowSubmitModal(true);
+                    }}
+                    disabled={!(profileData.enrollments?.length > 0)}
+                    className="w-full py-2.5 text-sm font-semibold rounded-xl flex items-center justify-center gap-2 transition-all hover:scale-[1.02] active:scale-95 shadow-lg disabled:cursor-not-allowed"
+                    style={{ 
+                      background: !(profileData.enrollments?.length > 0) 
+                        ? 'var(--c-surface-2)' 
+                        : 'linear-gradient(135deg, #4f46e5, #818cf8)', 
+                      color: !(profileData.enrollments?.length > 0) ? 'var(--c-text-muted)' : 'white',
+                      opacity: !(profileData.enrollments?.length > 0) ? 0.8 : 1,
+                      border: '1px solid var(--c-border-dim)',
+                      boxShadow: !(profileData.enrollments?.length > 0) ? 'none' : '0 4px 15px rgba(79, 70, 229, 0.4)'
+                    }}>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                      <polyline points="17 8 12 3 7 8"/>
+                      <line x1="12" y1="3" x2="12" y2="15"/>
+                    </svg>
+                    Submit to Assignment
                   </button>
                 )}
-                <button onClick={() => setShowClearConfirm(true)} className="btn-danger w-full py-2 text-sm">
-                  🗑 Clear Canvas
+                <button onClick={() => setShowClearConfirm(true)} className="btn-danger w-full py-2 text-sm flex items-center justify-center gap-2">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="3 6 5 6 21 6" />
+                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                    <line x1="10" y1="11" x2="10" y2="17" />
+                    <line x1="14" y1="11" x2="14" y2="17" />
+                  </svg>
+                  Clear Canvas
                 </button>
                 <FeedbackBanner feedback={feedback} />
               </div>
             )}
             {activeTab === 'Truth Table' && (
-              <div className="rounded-xl overflow-hidden" style={{ background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.05)' }}>
+              <div className="rounded-xl overflow-hidden" style={{ background: 'var(--c-surface-2)', border: '1px solid var(--c-border-dim)' }}>
                 <TruthTable gates={gates} wires={wires} />
               </div>
             )}
             {activeTab === 'Circuit' && (
-              <div className="grid grid-cols-2 gap-2">
-                <StatChip label="Gates"   value={gates.filter(g => g.type !== 'INPUT' && g.type !== 'OUTPUT').length} color="var(--neon-blue)" />
-                <StatChip label="Wires"   value={wires.length} color="var(--neon-green)" />
-                <StatChip label="Inputs"  value={gates.filter(g => g.type === 'INPUT').length}  color="var(--neon-amber)" />
-                <StatChip label="Outputs" value={gates.filter(g => g.type === 'OUTPUT').length} color="var(--neon-red)" />
-              </div>
+              <>
+                <div className="grid grid-cols-2 gap-2">
+                  <StatChip label="Gates"   value={gates.filter(g => g.type !== 'INPUT' && g.type !== 'OUTPUT').length} color="var(--neon-blue)" />
+                  <StatChip label="Wires"   value={wires.length} color="var(--neon-green)" />
+                  <StatChip label="Inputs"  value={gates.filter(g => g.type === 'INPUT').length}  color="var(--neon-amber)" />
+                  <StatChip label="Outputs" value={gates.filter(g => g.type === 'OUTPUT').length} color="var(--neon-red)" />
+                </div>
+
+                <div className="mt-3 flex flex-col gap-2 p-3 rounded-xl border" style={{ background: 'var(--c-surface-2)', borderColor: 'var(--c-border-dim)' }}>
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-black uppercase tracking-wider" style={{ color: 'var(--c-text-muted)' }}>Output Mode</span>
+                    <div className="flex gap-1.5 bg-black/10 dark:bg-black/40 p-1.5 rounded-xl border border-black/5 dark:border-white/5">
+                      <button 
+                        onClick={() => setShowBinaryOutput(false)}
+                        className={`flex-1 px-3 py-1.5 text-[10px] font-black rounded-lg transition-all duration-300 transform active:scale-95`}
+                        style={{
+                          background: !showBinaryOutput 
+                            ? 'rgba(57, 255, 20, 0.25)' 
+                            : 'rgba(239, 68, 68, 0.12)',
+                          color: !showBinaryOutput ? 'var(--neon-green)' : '#ef4444',
+                          boxShadow: !showBinaryOutput 
+                            ? '0 0 15px rgba(57, 255, 20, 0.4), inset 0 0 5px rgba(255,255,255,0.2)' 
+                            : '0 0 8px rgba(239, 68, 68, 0.15)',
+                          border: `1.5px solid ${!showBinaryOutput ? 'rgba(57, 255, 20, 0.4)' : 'rgba(239, 68, 68, 0.2)'}`,
+                          textShadow: !showBinaryOutput ? '0 0 8px rgba(57, 255, 20, 0.6)' : 'none',
+                          opacity: !showBinaryOutput ? 1 : 0.6
+                        }}
+                      >
+                        LED
+                      </button>
+                      <button 
+                        onClick={() => setShowBinaryOutput(true)}
+                        className={`flex-1 px-3 py-1.5 text-[10px] font-black rounded-lg transition-all duration-300 transform active:scale-95`}
+                        style={{
+                          background: showBinaryOutput 
+                            ? 'rgba(57, 255, 20, 0.25)' 
+                            : 'rgba(239, 68, 68, 0.12)',
+                          color: showBinaryOutput ? 'var(--neon-green)' : '#ef4444',
+                          boxShadow: showBinaryOutput 
+                            ? '0 0 15px rgba(57, 255, 20, 0.4), inset 0 0 5px rgba(255,255,255,0.2)' 
+                            : '0 0 8px rgba(239, 68, 68, 0.15)',
+                          border: `1.5px solid ${showBinaryOutput ? 'rgba(57, 255, 20, 0.4)' : 'rgba(239, 68, 68, 0.2)'}`,
+                          textShadow: showBinaryOutput ? '0 0 8px rgba(57, 255, 20, 0.6)' : 'none',
+                          opacity: showBinaryOutput ? 1 : 0.6
+                        }}
+                      >
+                        0 / 1
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </>
             )}
             <div className="section-divider" />
             <ChallengeList
               onSelectChallenge={(c) => { setSelectedChallenge(c); addToast('info', `Challenge: ${c.title}`); }}
               selectedChallengeId={selectedChallenge?.id}
             />
+
+
           </>
         )}
       </BottomSheet>

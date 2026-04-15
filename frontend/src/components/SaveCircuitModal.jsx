@@ -50,20 +50,21 @@ const SaveCircuitModal = ({ isOpen, suggestedName = 'My Circuit 1', suggestions 
   return createPortal(
     <div
       className="fixed inset-0 z-[9999] flex items-center justify-center animate-fade-in"
-      style={{ background: 'rgba(0,0,0,0.72)', backdropFilter: 'blur(7px)' }}
+      style={{ background: 'var(--c-overlay)', backdropFilter: 'blur(7px)' }}
       onClick={onCancel}
     >
       <div
         className="glass-panel p-7 flex flex-col gap-5 w-full max-w-sm mx-4 animate-scale-in"
         style={{
-          border: '1.5px solid rgba(0,212,255,0.35)',
-          boxShadow: '0 0 50px rgba(0,212,255,0.12), 0 20px 40px rgba(0,0,0,0.6)',
+          border: '1.5px solid var(--c-border-dim)',
+          background: 'var(--c-surface)',
+          boxShadow: '0 8px 32px rgba(0,0,0,0.1)',
         }}
         onClick={(e) => e.stopPropagation()}
       >
         {/* Icon + heading */}
         <div className="flex flex-col items-center gap-2">
-          <div className="w-12 h-12 rounded-2xl flex items-center justify-center mb-1" style={{ background: 'rgba(0,212,255,0.1)', color: 'var(--neon-blue)' }}>
+          <div className="w-12 h-12 rounded-2xl flex items-center justify-center mb-1" style={{ background: 'var(--c-surface-2)', border: '1px solid var(--neon-blue)', color: 'var(--neon-blue)' }}>
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" />
               <polyline points="17 21 17 13 7 13 7 21" />
@@ -76,7 +77,7 @@ const SaveCircuitModal = ({ isOpen, suggestedName = 'My Circuit 1', suggestions 
           >
             Name Your Circuit
           </h2>
-          <p className="text-center text-xs text-slate-500">
+          <p className="text-center text-xs" style={{ color: 'var(--c-text-muted)' }}>
             Give it a memorable name before saving.
           </p>
         </div>
@@ -90,14 +91,15 @@ const SaveCircuitModal = ({ isOpen, suggestedName = 'My Circuit 1', suggestions 
             onChange={(e) => setName(e.target.value)}
             maxLength={64}
             placeholder="e.g. My Circuit 1"
-            className="w-full px-4 py-3 rounded-xl text-sm font-semibold text-white outline-none transition-all duration-200"
+            className="w-full px-4 py-3 rounded-xl text-sm font-semibold outline-none transition-all duration-200"
             style={{
-              background: 'rgba(0,212,255,0.06)',
-              border: '1.5px solid rgba(0,212,255,0.3)',
+              background: 'var(--c-surface-2)',
+              border: '1.5px solid var(--c-border-dim)',
               caretColor: 'var(--neon-blue)',
+              color: 'var(--c-text)',
             }}
-            onFocus={(e) => (e.target.style.borderColor = 'rgba(0,212,255,0.7)')}
-            onBlur={(e) => (e.target.style.borderColor = 'rgba(0,212,255,0.3)')}
+            onFocus={(e) => (e.target.style.borderColor = 'var(--neon-blue)')}
+            onBlur={(e) => (e.target.style.borderColor = 'var(--c-border-dim)')}
           />
 
           {/* Quick-pick suggestion chips */}
@@ -109,9 +111,9 @@ const SaveCircuitModal = ({ isOpen, suggestedName = 'My Circuit 1', suggestions 
                   onClick={() => setName(s)}
                   className="px-2.5 py-1 rounded-lg text-[10px] font-bold transition-all duration-150 hover:scale-105"
                   style={{
-                    background: name === s ? 'rgba(0,212,255,0.18)' : 'rgba(255,255,255,0.05)',
-                    border: `1px solid ${name === s ? 'rgba(0,212,255,0.5)' : 'rgba(255,255,255,0.1)'}`,
-                    color: name === s ? 'var(--neon-blue)' : 'rgba(255,255,255,0.4)',
+                    background: name === s ? 'rgba(0,212,255,0.18)' : 'var(--c-surface-2)',
+                    border: `1px solid ${name === s ? 'rgba(0,212,255,0.5)' : 'var(--c-border-dim)'}`,
+                    color: name === s ? 'var(--neon-blue)' : 'var(--c-text-muted)',
                   }}
                 >
                   {s}

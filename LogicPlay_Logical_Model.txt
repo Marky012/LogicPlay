@@ -1,0 +1,93 @@
+LOGICPLAY SYSTEM - LOGICAL DATA MODEL (LDM)
+=========================================
+
+1. ENTITY: USER (Account Information)
+   - UserID [PK, Integer]
+   - Username [String]
+   - PasswordHash [String, Nullable]
+   - Role [String: "Student", "Teacher"]
+   - Points [Integer]
+   - Level [Integer]
+   - Badges [JSON Array]
+   - CreatedAt [DateTime]
+   * Relationship: One-to-Many with CIRCUIT, CLASSROOM, ENROLLMENT, ASSIGNMENT, SUBMISSION
+
+2. ENTITY: CLASSROOM (Learning Groups)
+   - ClassroomID [PK, Integer]
+   - Name [String]
+   - TeacherID [FK -> USER.UserID]
+   - JoinCode [String, Unique]
+   - CreatedAt [DateTime]
+   * Relationship: Many-to-One with USER (Teacher); One-to-Many with ENROLLMENT, ASSIGNMENT
+
+3. ENTITY: ENROLLMENT (Classroom Membership)
+   - EnrollmentID [PK, Integer]
+   - ClassroomID [FK -> CLASSROOM.ClassroomID]
+   - StudentID [FK -> USER.UserID]
+   - JoinedAt [DateTime]
+   * Relationship: Many-to-One with CLASSROOM, USER (Student)
+
+4. ENTITY: ASSIGNMENT (Teacher-Created Tasks)
+   - AssignmentID [PK, Integer]
+   - TeacherID [FK -> USER.UserID]
+   - ClassroomID [FK -> CLASSROOM.ClassroomID, Nullable]
+   - Title [String]
+   - Description [String, Nullable]
+   - TargetGate [String, Nullable]
+   - DueDate [DateTime, Nullable]
+   - AcceptLate [Boolean]
+   - PointsReward [Integer]
+   - CreatedAt [DateTime]
+   * Relationship: Many-to-One with USER (Teacher), CLASSROOM; One-to-Many with SUBMISSION
+
+5. ENTITY: SUBMISSION (Student Work)
+   - SubmissionID [PK, Integer]
+   - AssignmentID [FK -> ASSIGNMENT.AssignmentID]
+   - StudentID [FK -> USER.UserID]
+   - CircuitData [JSON]
+   - AutoScore [Integer, Nullable]
+   - TeacherScore [Integer, Nullable]
+   - TeacherFeedback [String, Nullable]
+   - SubmittedAt [DateTime]
+   - IsLate [Boolean]
+   - Status [String: "Pending", "Graded"]
+   * Relationship: Many-to-One with ASSIGNMENT, USER (Student)
+
+6. ENTITY: CIRCUIT (Independent Work)
+   - CircuitID [PK, Integer]
+   - UserID [FK -> USER.UserID]
+   - CircuitData [JSON]
+   - Score [Integer, Nullable]
+   - Feedback [String, Nullable]
+   - CreatedAt [DateTime]
+   * Relationship: Many-to-One with USER
+
+7. ENTITY: BADGE (Achievement Dictionary)
+   - BadgeID [PK, Integer]
+   - Name [String, Unique]
+   - Description [String]
+   - RequirementType [String]
+   - RequirementValue [Integer]
+   * Relationship: Referenced by Application Logic via USER.Badges (JSON)
+
+8. ENTITY: CHALLENGE (Logic Missions)
+   - ChallengeID [PK, Integer]
+   - Title [String]
+   - Description [String]
+   - TargetGate [String, Nullable]
+   - GateCount [Integer, Nullable]
+   - PointsReward [Integer]
+   - CreatedAt [DateTime]
+   * Relationship: Independent mission catalog
+
+-----------------------------------------
+CARDINALITY SUMMARY (Logical Views):
+1. [Teacher] 1 --- * [Classroom]
+2. [Teacher] 1 --- * [Assignment]
+3. [Student] 1 --- * [Enrollment]
+4. [Classroom] 1 --- * [Enrollment]
+5. [Classroom] 1 --- * [Assignment]
+6. [Assignment] 1 --- * [Submission]
+7. [Student] 1 --- * [Submission]
+8. [User] 1 --- * [Circuit]
+-----------------------------------------

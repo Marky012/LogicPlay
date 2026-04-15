@@ -25,8 +25,18 @@ export const getUser = async (username) => {
   return response.data;
 };
 
+export const deleteUser = async (username) => {
+  const response = await api.delete(`/users/${username}`);
+  return response.data;
+};
+
 export const getAllStudents = async () => {
   const response = await api.get('/users/all');
+  return response.data;
+};
+
+export const getLeaderboard = async (limit = 20) => {
+  const response = await api.get(`/users/leaderboard?limit=${limit}`);
   return response.data;
 };
 
@@ -74,6 +84,16 @@ export const gradeCircuit = async (circuitData) => {
   return response.data;
 };
 
+export const deleteCircuit = async (id) => {
+  const response = await api.delete(`/circuits/${id}`);
+  return response.data;
+};
+
+export const renameCircuit = async (id, name) => {
+  const response = await api.put(`/circuits/${id}/name`, { name });
+  return response.data;
+};
+
 // ─── Challenges ───────────────────────────────────────────────────
 
 export const getChallenges = async () => {
@@ -93,11 +113,26 @@ export const getTeacherClassrooms = async (teacherUsername) => {
   return response.data;
 };
 
+export const getTeacherStudents = async (teacherUsername) => {
+  const response = await api.get(`/classrooms/teacher/${encodeURIComponent(teacherUsername)}/students`);
+  return response.data;
+};
+
 export const joinClassroom = async (joinCode, studentUsername) => {
   const response = await api.post('/classrooms/join', {
     join_code: joinCode,
     student_username: studentUsername
   });
+  return response.data;
+};
+
+export const updateClassroom = async (classroomId, data) => {
+  const response = await api.put(`/classrooms/${classroomId}`, data);
+  return response.data;
+};
+
+export const deleteClassroom = async (classroomId) => {
+  const response = await api.delete(`/classrooms/${classroomId}`);
   return response.data;
 };
 
@@ -108,6 +143,21 @@ export const getStudentClassrooms = async (studentUsername) => {
 
 export const getClassroomStudents = async (classroomId) => {
   const response = await api.get(`/classrooms/${classroomId}/students`);
+  return response.data;
+};
+
+export const getClassroomEnrollments = async (classroomId) => {
+  const response = await api.get(`/classrooms/${classroomId}/enrollments`);
+  return response.data;
+};
+
+export const unenrollStudent = async (classroomId, studentUsername) => {
+  const response = await api.delete(`/classrooms/${classroomId}/students/${encodeURIComponent(studentUsername)}`);
+  return response.data;
+};
+
+export const approveStudent = async (classroomId, studentUsername) => {
+  const response = await api.put(`/classrooms/${classroomId}/enrollments/${encodeURIComponent(studentUsername)}/approve`);
   return response.data;
 };
 

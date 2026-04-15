@@ -15,11 +15,11 @@ class User(Base):
     badges = Column(JSON, default=list)
     created_at = Column(DateTime, default=datetime.utcnow)
 
-    circuits = relationship("Circuit", back_populates="owner")
-    assignments = relationship("Assignment", back_populates="teacher")
-    submissions = relationship("Submission", back_populates="student")
-    classrooms_taught = relationship("Classroom", back_populates="teacher")
-    enrollments = relationship("Enrollment", back_populates="student")
+    circuits = relationship("Circuit", back_populates="owner", cascade="all, delete-orphan")
+    assignments = relationship("Assignment", back_populates="teacher", cascade="all, delete-orphan")
+    submissions = relationship("Submission", back_populates="student", cascade="all, delete-orphan")
+    classrooms_taught = relationship("Classroom", back_populates="teacher", cascade="all, delete-orphan")
+    enrollments = relationship("Enrollment", back_populates="student", cascade="all, delete-orphan")
 
 
 class Circuit(Base):
@@ -64,11 +64,12 @@ class Classroom(Base):
     name = Column(String, nullable=False)
     teacher_id = Column(Integer, ForeignKey("users.id"))
     join_code = Column(String, unique=True, index=True)
+    require_approval = Column(Boolean, default=False)
     created_at = Column(DateTime, default=datetime.utcnow)
 
     teacher = relationship("User", back_populates="classrooms_taught")
     enrollments = relationship("Enrollment", back_populates="classroom", cascade="all, delete-orphan")
-    assignments = relationship("Assignment", back_populates="classroom")
+    assignments = relationship("Assignment", back_populates="classroom", cascade="all, delete-orphan")
 
 
 class Enrollment(Base):
@@ -77,6 +78,7 @@ class Enrollment(Base):
     id = Column(Integer, primary_key=True, index=True)
     classroom_id = Column(Integer, ForeignKey("classrooms.id"))
     student_id = Column(Integer, ForeignKey("users.id"))
+    status = Column(String, default="approved") # "pending" | "approved"
     joined_at = Column(DateTime, default=datetime.utcnow)
 
     classroom = relationship("Classroom", back_populates="enrollments")

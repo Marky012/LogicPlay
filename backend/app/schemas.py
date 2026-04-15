@@ -5,11 +5,26 @@ from datetime import datetime
 
 # ─────────────────────────── Classrooms ────────────────────────────
 
+class EnrollmentOut(BaseModel):
+    id: int
+    classroom_id: int
+    student_id: int
+    status: str
+
+    class Config:
+        orm_mode = True
+        from_attributes = True
+
 class ClassroomBase(BaseModel):
     name: str
+    require_approval: bool = False
 
 class ClassroomCreate(ClassroomBase):
     pass
+
+class ClassroomUpdate(BaseModel):
+    name: Optional[str] = None
+    require_approval: Optional[bool] = None
 
 class ClassroomOut(ClassroomBase):
     id: int
@@ -35,6 +50,9 @@ class CircuitBase(BaseModel):
 
 class CircuitCreate(CircuitBase):
     pass
+
+class CircuitRename(BaseModel):
+    name: str
 
 class Circuit(CircuitBase):
     id: int
@@ -62,6 +80,7 @@ class User(UserBase):
     badges: List[Any]
     created_at: datetime
     circuits: List[Circuit] = []
+    enrollments: List[EnrollmentOut] = []
 
     class Config:
         orm_mode = True

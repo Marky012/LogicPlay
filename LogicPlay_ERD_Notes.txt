@@ -1,0 +1,85 @@
+LOGICPLAY SYSTEM - ENTITY RELATIONSHIP DIAGRAM (ERD) NOTES
+=========================================================
+
+1. TABLE: users
+   - id (PK) [Integer]
+   - username [String, Unique]
+   - password_hash [String, Nullable for students]
+   - role [String: "student" | "teacher"]
+   - points [Integer]
+   - level [Integer]
+   - badges [JSON List]
+   - created_at [DateTime]
+
+2. TABLE: circuits
+   - id (PK) [Integer]
+   - user_id (FK -> users.id) [Integer]
+   - circuit_data [JSON]
+   - score [Integer, Nullable]
+   - feedback [String, Nullable]
+   - created_at [DateTime]
+
+3. TABLE: classrooms
+   - id (PK) [Integer]
+   - name [String]
+   - teacher_id (FK -> users.id) [Integer]
+   - join_code [String, Unique]
+   - created_at [DateTime]
+
+4. TABLE: enrollments
+   - id (PK) [Integer]
+   - classroom_id (FK -> classrooms.id) [Integer]
+   - student_id (FK -> users.id) [Integer]
+   - joined_at [DateTime]
+
+5. TABLE: assignments
+   - id (PK) [Integer]
+   - teacher_id (FK -> users.id) [Integer]
+   - classroom_id (FK -> classrooms.id, Nullable) [Integer]
+   - title [String]
+   - description [String, Nullable]
+   - target_gate [String, Nullable]
+   - due_date [DateTime, Nullable]
+   - accept_late [Boolean]
+   - points_reward [Integer]
+   - created_at [DateTime]
+
+6. TABLE: submissions
+   - id (PK) [Integer]
+   - assignment_id (FK -> assignments.id) [Integer]
+   - student_id (FK -> users.id) [Integer]
+   - circuit_data [JSON]
+   - auto_score [Integer, Nullable]
+   - teacher_score [Integer, Nullable]
+   - teacher_feedback [String, Nullable]
+   - submitted_at [DateTime]
+   - is_late [Boolean]
+   - status [String: "pending" | "graded"]
+
+7. TABLE: badges
+   - id (PK) [Integer]
+   - name [String, Unique]
+   - description [String]
+   - requirement_type [String]
+   - requirement_value [Integer]
+
+8. TABLE: challenges
+   - id (PK) [Integer]  
+   - title [String]
+   - description [String]
+   - target_gate [String, Nullable]
+   - gate_count [Integer, Nullable]
+   - points_reward [Integer]
+   - created_at [DateTime]
+
+---------------------------------------------------------
+RELATIONSHIPS SUMMARY:
+- One USER (Teacher) can have many CLASSROOMS.
+- One USER (Teacher) can have many ASSIGNMENTS.
+- One USER (Student) can have many ENROLLMENTS.
+- One USER (Student/Teacher) can have many CIRCUITS.
+- One CLASSROOM can have many ENROLLMENTS (Students).
+- One CLASSROOM can have many ASSIGNMENTS.
+- One ASSIGNMENT can have many SUBMISSIONS.
+- One USER (Student) can have many SUBMISSIONS.
+---------------------------------------------------------
