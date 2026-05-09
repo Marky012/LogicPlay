@@ -1,0 +1,109 @@
+LOGICPLAY: ALGORITHMS AND SYSTEM SPECIFICATIONS
+
+1. CORE ALGORITHMS
+
+1.1 Logic Circuit Simulation Algorithm
+- Location: frontend/src/utils/circuitLogic.js
+- Mechanism: Iterative Steady-State Solver.
+- Process: 
+  1. Initializes states for all INPUT gates.
+  2. Iteratively propagates signals through AND, OR, NOT, NAND, NOR, XOR, and XNOR gates.
+  3. Uses a cycle limit (Safety Guard) to prevent infinite loops in oscillating circuits (e.g., NOT gate tied to itself).
+  4. Returns the final binary state (0 or 1) for all gates and wires in the network.
+
+1.2 ML-Based Autograding System
+- Location: backend/ml_model/
+- Model: Pre-trained Random Forest Regressor (served via Python/FastAPI).
+- Function: Analyzes the structural "DNA" of a circuit JSON (node types, wire density, connection patterns) to predict a performance/correctness score.
+
+1.3 Structural Heuristic Scoring
+- Location: backend/app/services/gamification.py
+- Mechanism: Connectivity-Relative Heuristics.
+- Formula: Combines a Connectivity Ratio (actual wires vs. theoretical max) with a Complexity Bonus (number of logic gates used) to provide instant feedback on submission quality.
+
+1.4 Gamification Leveling Algorithm
+- Formula: Level = floor(Total_Points / 100) + 1
+- Awarding: Points are earned based on saved circuit complexity (gate count) and the predicted score from the ML model.
+
+1.5 Security & Authentication
+- Password Hashing: bcrypt (Industry-standard salted hashing with a cost factor of 12).
+- Stateless Auth: JWT (JSON Web Tokens) for secure, stateless authentication and session management.
+- Input Validation: Pydantic schemas enforce data types and structures on every API request.
+- Data Integrity: SQLAlchemy ORM with PRAGMA foreign_keys=ON enabled to ensure relational consistency in SQLite.
+- Enrollment Security: Unique 6-character join codes and optional Teacher Approval requirement for classroom enrollments.
+- Cycle Guard: Built-in safety limit in the simulation algorithm to prevent infinite loop exploits.
+
+
+2. PWA & OFFLINE CAPABILITIES
+
+2.1 Network Interception Algorithm
+- Tooling: Workbox (Service Worker).
+- Pattern: Regex-based interceptor (/^https?:\/\/[^\/]+:8000\/.*/i) that caches all API responses (assignments, challenges, leaderboard) for offline access.
+
+2.2 Local Resource Caching
+- Mechanism: IndexedDB storage.
+- Function: Automatically redirects circuit "save" requests to a local database when the user is disconnected, syncing them once back online.
+
+3. UI/UX TRANSFORMATION ALGORITHMS
+
+3.1 Panning & Zooming Math
+- Implementation: Canvas transformation math.
+- Function: Calculates scale and offset ratios during pinch-to-zoom or mouse-wheel events to ensure the center of the zoom remains at the cursor position.
+
+3.2 Dynamic Wire Rendering
+- Implementation: Cubic Bézier Curves.
+- Algorithm: Real-time calculation of control points based on gate pin positions to draw smooth, non-intersecting visual connections between logic gates.
+
+4. SYSTEM ARCHITECTURE SUMMARY
+
+Layer          | Technology
+---------------|-------------------------------------------------------
+Frontend       | React 18, Vite, p5.js, Tailwind CSS
+Backend        | FastAPI (Python 3.10+), SQLAlchemy
+Database       | SQLite (Dev/Local), PostgreSQL (Production/Scalability)
+Communication  | RESTful JSON API
+Deployment     | Docker with Nginx Reverse Proxy
+
+5. DATABASE SCALABILITY & LIMITS
+
+5.1 Storage & User Capacity
+- Registration: Unlimited. The system architecture does not impose any hardcoded limits on the number of users, classrooms, or circuits that can be created.
+- Database Engine: Uses SQLite for local development and standalone installations. SQLite supports databases up to 140 Terabytes in size and approximately 2^64 rows per table.
+- Concurrency: While SQLite is optimal for single-user or small-group local servers, the codebase is fully compatible with PostgreSQL via SQLAlchemy for high-concurrency production environments.
+
+
+6. PREMIUM UX & ADVANCED FEATURES
+
+6.1 Aesthetic Design System (Cyber-Neon)
+- Visual Style: "Glass-Neon" aesthetic utilizing glassmorphism (backdrop-blur) and vibrantly colored neon glows.
+- Theme Support: Dynamic Light/Dark mode switching with theme-aware icons and high-contrast logic states.
+- Micro-interactions: p5.js-driven animations for binary signal pulses along wires.
+
+6.2 Real-time Teacher Dashboard
+- Data Fetching: Silent background polling logic that ensures teachers see real-time updates of student submissions without page flickers.
+- Analytics: Automated data aggregation for classroom performance metrics.
+
+6.3 Mobile-First Responsive Layout
+- Touch Support: Dedicated pinch-to-zoom and multi-touch swipe handling for complex circuit navigation on mobile devices.
+- PWA Features: Fully installable as a standalone application on iOS/Android with custom splash screens and icons.
+
+7. INDUSTRY-STANDARD ALGORITHM CORRELATIONS
+
+7.1 Discrete-Event Simulation (DES) & Signal Propagation
+The system utilizes a simplified Levelized Compiled-Code (LCC) Simulation model. In the professional EDA (Electronic Design Automation) industry, tools like Verilator and ModelSim use similar signal propagation techniques to verify RTL (Register-Transfer Level) designs. Our use of iterative propagation with a "Safety Guard" cycle limit mimics the Zero-Delay Simulation model used in functional verification.
+
+7.2 Random Forest Ensemble Learning (ML)
+The autograding backend utilizes the Random Forest Regressor algorithm. This is a standard industry approach for predictive analytics and quality assurance. Unlike deep learning, Random Forest is preferred here for its high interpretability (feature importance) and its ability to handle structural "tabular" data (gate/wire counts) without the risk of overfitting on smaller datasets.
+
+7.3 Graph Structural Analysis (EDA Feature Extraction)
+The feature extraction process (extract_features.py) is rooted in Graph Theory. In high-level hardware synthesis, industry tools use Graph Isomorphism and Topological Sorting to optimize gate arrangements. LogicPlay utilizes these concepts to convert a non-linear circuit graph into a numerical feature vector for the ML model.
+
+7.4 Optimistic UI & Eventual Consistency
+The offline-sync logic (IndexedDB + Service Workers) implements the Optimistic UI pattern. This is the same architecture used by industry leaders like Slack, Trello, and Google Docs to ensure that user actions (saving a circuit) feel instantaneous regardless of network latency, with background reconciliation once a connection is restored.
+
+7.5 Bezier Path Interpolation
+For visual wire routing, the system uses Cubic Bézier Curve Interpolation. This algorithm is the foundation of vector graphics in industry-standard software like Adobe Illustrator, AutoCAD, and Figma. It ensures that connections between components are smooth and mathematically consistent across different zoom scales.
+
+7.6 BCrypt & Salted Hashing
+The authentication system uses the BCrypt adaptive hashing algorithm. This is the industry-standard recommendation (NIST-compliant) for password security, as it incorporates a "Salt" to prevent rainbow table attacks and a "Work Factor" to defend against brute-force attempts on modern hardware.
+

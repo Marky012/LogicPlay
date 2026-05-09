@@ -1,7 +1,19 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 
 const OfflineBanner = ({ isOffline }) => {
-  if (!isOffline) return null;
+  const [show, setShow] = useState(false);
+
+  useEffect(() => {
+    if (isOffline) {
+      setShow(true);
+      const timer = setTimeout(() => setShow(false), 4000);
+      return () => clearTimeout(timer);
+    } else {
+      setShow(false);
+    }
+  }, [isOffline]);
+
+  if (!show) return null;
 
   return (
     <div className="fixed top-0 left-0 right-0 z-[9990] flex items-center justify-center gap-2 py-1.5 text-xs font-bold"

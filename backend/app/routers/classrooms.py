@@ -98,6 +98,15 @@ def approve_student_enrollment(classroom_id: int, student_username: str, db: Ses
         raise HTTPException(status_code=404, detail="Enrollment not found")
     return {"detail": "Approved successfully"}
 
+@router.post("/{classroom_id}/regenerate-code", response_model=schemas.ClassroomOut)
+def regenerate_join_code(classroom_id: int, db: Session = Depends(get_db)):
+    updated = crud.regenerate_classroom_join_code(db, classroom_id)
+    if not updated:
+        raise HTTPException(status_code=404, detail="Classroom not found")
+    out = schemas.ClassroomOut.model_validate(updated)
+    out.student_count = len(updated.enrollments)
+    return out
+
 @router.get("/student/{student_username}", response_model=List[schemas.ClassroomOut])
 def get_student_classrooms(student_username: str, db: Session = Depends(get_db)):
     student = crud.get_user_by_username(db, username=student_username)

@@ -12,7 +12,6 @@ class EnrollmentOut(BaseModel):
     status: str
 
     class Config:
-        orm_mode = True
         from_attributes = True
 
 class ClassroomBase(BaseModel):
@@ -34,7 +33,6 @@ class ClassroomOut(ClassroomBase):
     student_count: int = 0
 
     class Config:
-        orm_mode = True
         from_attributes = True
 
 class ClassroomJoin(BaseModel):
@@ -60,20 +58,14 @@ class Circuit(CircuitBase):
     created_at: datetime
 
     class Config:
-        orm_mode = True
         from_attributes = True
 
+# ─────────────────────────── Auth & Users ───────────────────────
 
-# ─────────────────────────── User ───────────────────────────────
-
-class UserBase(BaseModel):
-    username: str
-
-class UserCreate(UserBase):
-    pass
-
-class User(UserBase):
+class User(BaseModel):
     id: int
+    username: str
+    email: Optional[str] = None
     role: str
     points: int
     level: int
@@ -83,24 +75,46 @@ class User(UserBase):
     enrollments: List[EnrollmentOut] = []
 
     class Config:
-        orm_mode = True
         from_attributes = True
 
-
-# ─────────────────────────── Teacher Auth ───────────────────────
-
-class TeacherRegister(BaseModel):
+class UserRegister(BaseModel):
     username: str
+    email: str
     password: str
 
-class TeacherLogin(BaseModel):
+class UserLogin(BaseModel):
     username: str
     password: str
+    device_token: Optional[str] = None
 
-class TeacherLoginResponse(BaseModel):
+class VerifyDevice(BaseModel):
+    username: str
+    code: str
+    device_token: str
+
+class ChangePassword(BaseModel):
+    username: str
+    old_password: str
+    new_password: str
+
+class LoginResponse(BaseModel):
     username: str
     role: str
     id: int
+    requires_verification: bool = False
+
+# Legacy schemas (kept temporarily or mapped)
+class UserCreate(UserRegister):
+    pass
+
+class TeacherRegister(UserRegister):
+    pass
+
+class TeacherLogin(UserLogin):
+    pass
+
+class TeacherLoginResponse(LoginResponse):
+    pass
 
 
 # ─────────────────────────── Badge ──────────────────────────────
@@ -111,7 +125,6 @@ class Badge(BaseModel):
     description: Optional[str] = None
 
     class Config:
-        orm_mode = True
         from_attributes = True
 
 
@@ -124,7 +137,6 @@ class Challenge(BaseModel):
     points_reward: int
 
     class Config:
-        orm_mode = True
         from_attributes = True
 
 
@@ -161,9 +173,9 @@ class AssignmentOut(BaseModel):
     points_reward: int
     created_at: datetime
     submission_count: int = 0
+    has_submitted: bool = False
 
     class Config:
-        orm_mode = True
         from_attributes = True
 
 
@@ -193,5 +205,4 @@ class SubmissionOut(BaseModel):
     status: str
 
     class Config:
-        orm_mode = True
         from_attributes = True

@@ -42,6 +42,11 @@ def submit_circuit(data: schemas.SubmissionCreate, db: Session = Depends(get_db)
     if not assignment:
         raise HTTPException(status_code=404, detail="Assignment not found")
 
+    # Check for duplicate submission
+    existing_sub = crud.get_submissions_by_student(db, student.id)
+    if any(s.assignment_id == data.assignment_id for s in existing_sub):
+        raise HTTPException(status_code=400, detail="You have already submitted this assignment.")
+
     # Check late-submission policy
     from datetime import datetime
     if assignment.due_date and datetime.utcnow() > assignment.due_date and not assignment.accept_late:
@@ -87,3 +92,26 @@ def grade_submission(
     if not sub:
         raise HTTPException(status_code=404, detail="Submission not found")
     return _enrich_sub(sub, db)
+
+
+@router.delete("/{submission_id}")
+def delete_submission(
+    submission_id: int,
+    username: str,
+    db: Session = Depends(get_db),
+):
+    # Verify student
+    student = crud.get_user_by_username(db, username)
+    if not student:
+        raise HTTPException(status_code=404, detail="Student not found")
+
+    # Verify submission ownership
+    sub = crud.get_submission(db, submission_id)
+    if not sub:
+        raise HTTPException(status_code=404, detail="Submission not found")
+    
+    if sub.student_id != student.id:
+        raise HTTPException(status_code=403, detail="Not authorized to delete this submission")
+
+    crud.delete_submission(db, submission_id)
+    return {"detail": "Submission deleted"}

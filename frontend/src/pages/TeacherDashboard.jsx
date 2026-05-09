@@ -1,6 +1,7 @@
 import React, { useState, useContext, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
+import { useTheme } from '../context/ThemeContext';
 import NavBar from '../components/NavBar';
 import CreateAssignmentModal from '../components/CreateAssignmentModal';
 import EditAssignmentModal from '../components/EditAssignmentModal';
@@ -25,11 +26,13 @@ import {
   deleteClassroom,
   unenrollStudent,
   approveStudent,
+  regenerateJoinCode,
   deleteUser,
   getLeaderboard,
 } from '../utils/api';
 import ConfirmModal from '../components/ConfirmModal';
 import TypeToConfirmModal from '../components/TypeToConfirmModal';
+import ChangePasswordModal from '../components/ChangePasswordModal';
 
 // ── Helpers ──────────────────────────────────────────────────────
 
@@ -215,8 +218,11 @@ const SimButton = ({ isPlaying, onClick }) => (
 
 const TeacherDashboard = () => {
   const { user, logout } = useContext(AuthContext);
+  const { isLight } = useTheme();
   const navigate = useNavigate();
   const addToast = useToast();
+
+  const initials = user?.username ? user.username.slice(0, 2).toUpperCase() : '??';
 
   const [activeTab, setActiveTab] = useState('My Classes');
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
@@ -243,6 +249,10 @@ const TeacherDashboard = () => {
   const [showDeleteClass, setShowDeleteClass] = useState(false);
   const [editClassName, setEditClassName] = useState('');
   const [editRequireApproval, setEditRequireApproval] = useState(false);
+  const [showApproveConfirm, setShowApproveConfirm] = useState(false);
+  const [studentToApprove, setStudentToApprove] = useState(null);
+  const [showRegenerateConfirm, setShowRegenerateConfirm] = useState(false);
+  const [isRegenerating, setIsRegenerating] = useState(false);
 
   const [showCreate, setShowCreate] = useState(false);
   const [editTarget, setEditTarget] = useState(null);
@@ -255,6 +265,7 @@ const TeacherDashboard = () => {
   const [showDeleteAccount, setShowDeleteAccount] = useState(false);
   const [deletingAccount, setDeletingAccount] = useState(false);
   const [showClearConfirm, setShowClearConfirm] = useState(false);
+  const [showChangePassword, setShowChangePassword] = useState(false);
 
   // ── Simulation tab state ──
   const [simGates, setSimGates] = useState([]);
@@ -268,54 +279,54 @@ const TeacherDashboard = () => {
   const simEvalRef = useRef(null);
 
   // ── Data fetchers ──
-  const fetchClassrooms = useCallback(async () => {
+  const fetchClassrooms = useCallback(async (silent = false) => {
     if (!user?.username) return;
-    setLoadingClassrooms(true);
+    if (!silent) setLoadingClassrooms(true);
     try {
       const data = await getTeacherClassrooms(user.username);
       setClassrooms(data);
     } catch (e) {
-      addToast('error', 'Failed to load classes');
+      if (!silent) addToast('error', 'Failed to load classes');
     } finally {
-      setLoadingClassrooms(false);
+      if (!silent) setLoadingClassrooms(false);
     }
   }, [user?.username]);
 
-  const fetchAssignments = useCallback(async () => {
+  const fetchAssignments = useCallback(async (silent = false) => {
     if (!user?.username) return;
-    setLoadingAssignments(true);
+    if (!silent) setLoadingAssignments(true);
     try {
       const data = await getAssignmentsByTeacher(user.username);
       setAssignments(data);
     } catch (e) {
-      addToast('error', 'Failed to load assignments');
+      if (!silent) addToast('error', 'Failed to load assignments');
     } finally {
-      setLoadingAssignments(false);
+      if (!silent) setLoadingAssignments(false);
     }
   }, [user?.username]);
 
-  const fetchSubmissions = useCallback(async (assignmentId) => {
-    setLoadingSubmissions(true);
+  const fetchSubmissions = useCallback(async (assignmentId, silent = false) => {
+    if (!silent) setLoadingSubmissions(true);
     try {
       const data = await getSubmissionsByAssignment(assignmentId);
       setSubmissions(data);
     } catch (e) {
-      addToast('error', 'Failed to load submissions');
+      if (!silent) addToast('error', 'Failed to load submissions');
     } finally {
-      setLoadingSubmissions(false);
+      if (!silent) setLoadingSubmissions(false);
     }
   }, []);
 
-  const fetchStudents = useCallback(async () => {
+  const fetchStudents = useCallback(async (silent = false) => {
     if (!user?.username) return;
-    setLoadingStudents(true);
+    if (!silent) setLoadingStudents(true);
     try {
       const data = await getTeacherStudents(user.username);
       setStudents(data);
     } catch (e) {
       /* non-fatal */
     } finally {
-      setLoadingStudents(false);
+      if (!silent) setLoadingStudents(false);
     }
   }, [user?.username]);
 
@@ -335,6 +346,25 @@ const TeacherDashboard = () => {
   useEffect(() => { fetchClassrooms(); }, [fetchClassrooms]);
   useEffect(() => { fetchStudents(); }, [fetchStudents]);
   useEffect(() => { fetchGlobalLeaderboard(); }, [fetchGlobalLeaderboard]);
+
+  // ── Background Polling for live updates ──
+  useEffect(() => {
+    const interval = setInterval(() => {
+      // Background silent refresh
+      fetchClassrooms(true);
+      fetchStudents(true);
+      fetchAssignments(true);
+      if (selectedClassroom) {
+        getClassroomEnrollments(selectedClassroom.id).then(data => {
+          setClassroomEnrollments(data);
+        }).catch(() => {});
+      }
+      if (selectedAssignment) {
+        fetchSubmissions(selectedAssignment.id, true);
+      }
+    }, 20000); // 20 seconds
+    return () => clearInterval(interval);
+  }, [fetchClassrooms, fetchStudents, fetchAssignments, selectedClassroom, selectedAssignment, fetchSubmissions]);
   useEffect(() => {
     if (activeTab === 'Analytics') {
       fetchStudents();
@@ -462,6 +492,7 @@ const TeacherDashboard = () => {
       setSelectedClassroom(null);
       setShowDeleteClass(false);
       fetchClassrooms();
+      fetchAssignments(); // Refresh assignments to remove orphaned ones
       addToast('success', 'Class deleted permanently');
     } catch (e) {
       addToast('error', 'Failed to delete class');
@@ -488,13 +519,37 @@ const TeacherDashboard = () => {
     }
   };
 
-  const handleApproveStudent = async (student) => {
+  const handleApproveStudent = (student) => {
+    setStudentToApprove(student);
+    setShowApproveConfirm(true);
+  };
+
+  const confirmApproveStudent = async () => {
+    if (!studentToApprove) return;
     try {
-      await approveStudent(selectedClassroom.id, student.username);
+      await approveStudent(selectedClassroom.id, studentToApprove.username);
       handleSelectClassroom(selectedClassroom);
-      addToast('success', `${student.username} approved!`);
+      addToast('success', `${studentToApprove.username} approved!`);
     } catch (e) {
       addToast('error', 'Failed to approve student.');
+    } finally {
+      setShowApproveConfirm(false);
+      setStudentToApprove(null);
+    }
+  };
+
+  const handleRegenerateCode = async () => {
+    setIsRegenerating(true);
+    try {
+      const updated = await regenerateJoinCode(selectedClassroom.id);
+      setSelectedClassroom(updated);
+      fetchClassrooms();
+      addToast('success', 'Join code rotated!');
+    } catch (e) {
+      addToast('error', 'Failed to rotate code.');
+    } finally {
+      setIsRegenerating(false);
+      setShowRegenerateConfirm(false);
     }
   };
 
@@ -548,8 +603,17 @@ const TeacherDashboard = () => {
     <div className="flex flex-col h-[100dvh] overflow-hidden" style={{ background: 'var(--c-bg)' }}>
       {/* Background accent */}
       <div className="fixed inset-0 pointer-events-none z-0">
-        <div className="absolute top-[-10%] right-[-5%] w-[500px] h-[500px] rounded-full opacity-[0.06] blur-[100px]"
-          style={{ background: 'radial-gradient(circle, #0369a1, transparent)' }} />
+        <div className="absolute top-[-10%] right-[-5%] w-[500px] h-[500px] rounded-full blur-[100px]"
+          style={{ 
+            background: isLight 
+              ? 'radial-gradient(circle, rgba(3,105,161,0.12), transparent)'
+              : 'radial-gradient(circle, #0369a1, transparent)',
+            opacity: isLight ? 0.5 : 0.06
+          }} />
+        {isLight && (
+          <div className="absolute bottom-[-10%] left-[-5%] w-[400px] h-[400px] rounded-full blur-[100px]" 
+            style={{ background: 'radial-gradient(circle, rgba(124,58,237,0.08), transparent)', opacity: 0.6 }} />
+        )}
       </div>
 
       <div className="z-10 relative"><NavBar profileData={{ points: 0, level: 1, badges: [] }} /></div>
@@ -558,11 +622,11 @@ const TeacherDashboard = () => {
       <div className="flex flex-col md:flex-row flex-1 overflow-hidden z-10 relative">
 
         {/* ── Sidebar ── */}
-        <aside className={`w-full ${isSidebarCollapsed ? 'md:w-20' : 'md:w-72'} transition-all duration-300 ease-in-out flex-shrink-0 flex flex-col pb-2 md:pb-0 overflow-y-auto hidden-scrollbar relative`}
-          style={{ borderRight: '1px solid var(--c-border-dim)', background: 'var(--c-surface-2)' }}>
+        <aside className={`w-full ${isSidebarCollapsed ? 'md:w-20' : 'md:w-72'} transition-all duration-300 ease-in-out flex-shrink-0 flex flex-col pb-2 md:pb-0 overflow-y-auto hidden-scrollbar relative border-b md:border-b-0 md:border-r border-[color:var(--c-border-dim)]`}
+          style={{ background: 'var(--c-surface-2)' }}>
 
           {/* Teacher Profile Card */}
-          <div className={`${isSidebarCollapsed ? 'px-2 pt-10 pb-4' : 'px-5 pt-7 pb-4'} relative transition-all duration-300`} style={{ borderBottom: '1px solid var(--c-border-dim)' }}>
+          <div className={`hidden md:block ${isSidebarCollapsed ? 'px-2 pt-10 pb-4' : 'px-5 pt-7 pb-4'} relative transition-all duration-300`} style={{ borderBottom: '1px solid var(--c-border-dim)' }}>
 
             {/* Collapse Toggle */}
             <button onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
@@ -578,24 +642,18 @@ const TeacherDashboard = () => {
               style={{ background: 'var(--c-accent)', transform: 'translate(30%, -30%)' }} />
 
             <div className={`flex items-center ${isSidebarCollapsed ? 'justify-center' : 'gap-4'} mb-5 relative z-10 transition-all duration-300`}>
-              <div className={`${isSidebarCollapsed ? 'w-10 h-10 text-sm' : 'w-14 h-14 text-xl'} rounded-2xl flex items-center justify-center font-black flex-shrink-0 select-none shadow-lg transition-all duration-300 hover:scale-105 mx-auto`}
-                style={{
-                  background: 'linear-gradient(135deg, #0369a1, #0ea5e9)',
-                  border: '2px solid var(--c-border)',
-                  color: '#fff',
-                  boxShadow: '0 8px 16px -4px rgba(0,130,200,0.4)'
-                }} title={isSidebarCollapsed ? user?.username : ''}>
-                {user?.username?.charAt(0).toUpperCase()}
+              <div className={`${isSidebarCollapsed ? 'w-10 h-10 text-sm' : 'w-14 h-14 text-xl'} avatar-neon-purple !rounded-2xl transition-all duration-300 mx-auto`}
+                title={isSidebarCollapsed ? user?.username : ''}>
+                {initials}
               </div>
               {!isSidebarCollapsed && (
                 <div className="flex-1 min-w-0 animate-fade-in origin-left">
                   <p className="font-extrabold text-base truncate leading-tight mb-1" style={{ color: 'var(--c-text)' }}>
                     {user?.username}
                   </p>
-                  <div className="inline-flex items-center gap-1.5 py-0.5">
-                    <div className="w-1.5 h-1.5 rounded-full"
-                      style={{ background: '#39ff14', boxShadow: '0 0 4px #39ff14' }} />
-                    <span className="text-[9px] font-black uppercase tracking-[0.15em] opacity-80" style={{ color: '#39ff14' }}>
+                  <div className="inline-flex items-center gap-1.5 py-0.5 px-2 rounded-full border border-blue-500/30 bg-blue-500/10">
+                    <div className="w-1 h-1 rounded-full bg-blue-500 animate-pulse-glow" />
+                    <span className="text-[9px] font-black uppercase tracking-[0.2em] opacity-80" style={{ color: 'var(--neon-blue)' }}>
                       Instructor
                     </span>
                   </div>
@@ -603,18 +661,18 @@ const TeacherDashboard = () => {
               )}
             </div>
 
-            {/* Quick Stats - Enhanced Partition Design */}
+            {/* Quick Stats */}
             <div className={`grid grid-cols-3 gap-2 relative z-10 ${isSidebarCollapsed ? 'hidden' : ''}`}>
               {[
-                { label: 'Classes', value: classrooms.length, color: '#00d4ff' },
-                { label: 'Tasks', value: assignments.length, color: '#00d4ff' },
-                { label: 'Students', value: students.length || '0', color: '#39ff14' },
+                { label: 'Classes',  value: classrooms.length,       color: isLight ? '#0369a1' : '#00d4ff' },
+                { label: 'Tasks',    value: assignments.length,       color: isLight ? '#0369a1' : '#00d4ff' },
+                { label: 'Students', value: students.length || '0',   color: isLight ? '#15803d' : '#39ff14' },
               ].map(s => (
                 <div key={s.label} className="flex flex-col items-center py-1.5 rounded-xl transition-all duration-300 hover:translate-y-[-2px] border"
                   style={{
-                    background: 'var(--c-surface)',
-                    borderColor: 'var(--c-border-dim)',
-                    boxShadow: `0 4px 6px -1px rgba(0,0,0,0.05)`
+                    background: isLight ? `color-mix(in srgb, ${s.color}, transparent 90%)` : 'var(--c-surface)',
+                    borderColor: isLight ? `color-mix(in srgb, ${s.color}, transparent 65%)` : 'var(--c-border-dim)',
+                    boxShadow: isLight ? `0 2px 8px color-mix(in srgb, ${s.color}, transparent 88%)` : '0 4px 6px -1px rgba(0,0,0,0.05)'
                   }}>
                   <span className="text-sm font-black leading-none" style={{ color: s.color }}>{s.value}</span>
                   <span className="text-[7px] font-black uppercase tracking-widest mt-1 opacity-60" style={{ color: 'var(--c-text)' }}>{s.label}</span>
@@ -697,10 +755,14 @@ const TeacherDashboard = () => {
               title={isSidebarCollapsed ? 'New Assignment' : ''}
               className={`w-full ${isSidebarCollapsed ? 'h-12 py-0 rounded-[20px]' : 'py-3 rounded-xl gap-2'} font-bold text-sm flex items-center justify-center transition-all duration-200 hover:scale-[1.02] active:scale-95`}
               style={{
-                background: 'linear-gradient(135deg, #075985, #0ea5e9)',
-                border: '1px solid rgba(0,212,255,0.3)',
+                background: isLight 
+                  ? 'linear-gradient(135deg, #0369a1, #0ea5e9)'
+                  : 'linear-gradient(135deg, #075985, #0ea5e9)',
+                border: isLight ? '1px solid rgba(3,105,161,0.4)' : '1px solid rgba(0,212,255,0.3)',
                 color: '#fff',
-                boxShadow: '0 8px 24px -6px rgba(0,130,200,0.4)',
+                boxShadow: isLight 
+                  ? '0 4px 16px rgba(3,105,161,0.3)'
+                  : '0 8px 24px -6px rgba(0,130,200,0.4)',
               }}
             >
               <svg width={isSidebarCollapsed ? "20" : "16"} height={isSidebarCollapsed ? "20" : "16"} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
@@ -830,18 +892,29 @@ const TeacherDashboard = () => {
                         <div className="flex items-center gap-1.5 px-3 py-1 rounded-lg bg-blue-900/10 border border-blue-500/20 text-sm">
                           <span className="text-[10px] uppercase font-black tracking-widest text-slate-500">Code:</span>
                           <span className="font-mono font-bold text-blue-400">{selectedClassroom.join_code}</span>
-                          <button
-                            onClick={() => {
-                              navigator.clipboard.writeText(selectedClassroom.join_code);
-                              addToast('success', 'Join code copied!');
-                            }}
-                            className="ml-0.5 p-1 rounded hover:bg-black/10 dark:hover:bg-white/10 transition-colors"
-                            title="Copy Join Code"
-                          >
-                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                              <rect x="9" y="9" width="13" height="13" rx="2" ry="2" /><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
-                            </svg>
-                          </button>
+                          <div className="flex items-center gap-0.5 ml-1">
+                            <button
+                              onClick={() => {
+                                navigator.clipboard.writeText(selectedClassroom.join_code);
+                                addToast('success', 'Join code copied!');
+                              }}
+                              className="p-1 rounded hover:bg-black/10 dark:hover:bg-white/10 transition-colors"
+                              title="Copy Join Code"
+                            >
+                              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                <rect x="9" y="9" width="13" height="13" rx="2" ry="2" /><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+                              </svg>
+                            </button>
+                            <button
+                              onClick={() => setShowRegenerateConfirm(true)}
+                              className="p-1 rounded hover:bg-red-500/10 text-slate-500 hover:text-red-500 transition-colors"
+                              title="Regenerate Join Code"
+                            >
+                              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                <path d="M21 2v6h-6M3 12a9 9 0 0 1 15-6.7L21 8M3 22v-6h6m12-4a9 9 0 0 1-15 6.7L3 16" />
+                              </svg>
+                            </button>
+                          </div>
                         </div>
                       </h3>
                       <button
@@ -1448,6 +1521,20 @@ const TeacherDashboard = () => {
                     </button>
                   </div>
 
+                  <div className="p-5 rounded-xl border border-blue-500/20 bg-blue-500/5 flex flex-col sm:flex-row items-center justify-between gap-4">
+                    <div className="text-center sm:text-left">
+                      <p className="text-sm font-bold text-blue-400">Security Settings</p>
+                      <p className="text-[11px] text-slate-500 max-w-[300px] mt-0.5">Regularly updating your password ensures your instructor access remains secure.</p>
+                    </div>
+                    <button 
+                      onClick={() => setShowChangePassword(true)}
+                      className="px-6 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest text-white shadow-lg transition-all hover:scale-105 active:scale-95"
+                      style={{ background: 'linear-gradient(135deg, #0284c7, #0369a1)', boxShadow: '0 4px 15px rgba(2,132,199,0.2)' }}
+                    >
+                      Update Password
+                    </button>
+                  </div>
+
                   <div className="pt-4 border-t border-white/5 flex items-center justify-between">
                     <span className="text-[10px] uppercase font-bold text-slate-500 tracking-wider">Account created</span>
                     <span className="text-xs text-slate-500">{new Date().toLocaleDateString()}</span>
@@ -1473,32 +1560,35 @@ const TeacherDashboard = () => {
       {/* ── Modals ── */}
       {showClassSettings && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-          <div className="glass-panel p-6 w-full max-w-sm rounded-[24px]">
-            <h3 className="text-lg font-black text-white mb-4">Classroom Settings</h3>
+          <div className="glass-panel p-6 w-full max-w-sm rounded-[24px]" style={{ border: '1px solid var(--c-border)', background: 'var(--c-glass)' }}>
+            <h3 className="text-lg font-black mb-4" style={{ color: 'var(--c-text)' }}>Classroom Settings</h3>
             <div className="flex flex-col gap-4">
               <div>
-                <label className="text-[10px] uppercase font-bold text-slate-400 mb-1 block">Class Name</label>
+                <label className="text-[10px] uppercase font-bold mb-1 block" style={{ color: 'var(--c-text-muted)' }}>Class Name</label>
                 <input
                   type="text"
                   value={editClassName}
                   onChange={e => setEditClassName(e.target.value)}
-                  className="w-full bg-black/5 dark:bg-black/20 border border-black/10 dark:border-white/10 rounded-xl px-4 py-2.5 text-sm text-black dark:text-white"
+                  className="w-full rounded-xl px-4 py-2.5 text-sm transition-all duration-200"
+                  style={{ background: 'var(--c-surface-2)', border: '1px solid var(--c-border-dim)', color: 'var(--c-text)' }}
                 />
               </div>
-              <label className="flex items-center gap-3 cursor-pointer group mt-2 p-3 rounded-xl border border-white/5 bg-white/5 hover:bg-white/10 transition-colors">
+              <label className="flex items-center gap-3 cursor-pointer group mt-2 p-3 rounded-xl border transition-all duration-200 hover:bg-white/5"
+                     style={{ background: 'var(--c-surface-2)', border: '1px solid var(--c-border-dim)' }}>
                 <div className="relative inline-block w-10 min-w-[40px] mr-2 align-middle select-none transition duration-200 ease-in">
-                  <input type="checkbox" className="toggle-checkbox absolute block w-5 h-5 rounded-full bg-white border-4 appearance-none cursor-pointer border-slate-700 top-0.5 left-0.5 peer checked:bg-white checked:border-blue-500 checked:translate-x-[18px] transition-all" checked={editRequireApproval} onChange={e => setEditRequireApproval(e.target.checked)} />
-                  <label className="toggle-label block overflow-hidden h-6 rounded-full bg-slate-700 cursor-pointer peer-checked:bg-blue-500 transition-colors"></label>
+                  <input type="checkbox" className="toggle-checkbox absolute block w-5 h-5 rounded-full bg-white border-4 appearance-none cursor-pointer border-slate-700 dark:border-slate-800 top-0.5 left-0.5 peer checked:bg-white checked:border-blue-500 checked:translate-x-[18px] transition-all" checked={editRequireApproval} onChange={e => setEditRequireApproval(e.target.checked)} />
+                  <label className="toggle-label block overflow-hidden h-6 rounded-full bg-slate-600 dark:bg-slate-700 cursor-pointer peer-checked:bg-blue-500 transition-colors"></label>
                 </div>
                 <div>
-                  <p className="text-sm font-bold text-white leading-tight">Require Approval</p>
-                  <p className="text-[10px] text-slate-400 mt-0.5">Force students to be approved manually.</p>
+                  <p className="text-sm font-bold leading-tight" style={{ color: 'var(--c-text)' }}>Require Approval</p>
+                  <p className="text-[10px] mt-0.5" style={{ color: 'var(--c-text-muted)' }}>Force students to be approved manually.</p>
                 </div>
               </label>
 
               <div className="flex items-center gap-2 mt-4">
-                <button onClick={() => setShowClassSettings(false)} className="flex-1 py-3 text-xs font-bold bg-black/5 dark:bg-white/5 hover:bg-black/10 dark:hover:bg-white/10 rounded-xl border border-black/10 dark:border-white/10 text-black dark:text-white transition-colors">Cancel</button>
-                <button onClick={saveClassSettings} className="flex-1 py-3 text-xs font-bold text-white rounded-xl transition-all" style={{ background: 'linear-gradient(135deg, #0284c7, #0369a1)', boxShadow: '0 4px 15px rgba(2,132,199,0.3)' }}>Save</button>
+                <button onClick={() => setShowClassSettings(false)} className="flex-1 py-3 text-xs font-bold rounded-xl border transition-colors"
+                        style={{ background: 'var(--c-surface-2)', borderColor: 'var(--c-border-dim)', color: 'var(--c-text-muted)' }}>Cancel</button>
+                <button onClick={saveClassSettings} className="flex-1 py-3 text-xs font-bold text-white rounded-xl transition-all hover:scale-[1.02] active:scale-95 shadow-glow-blue" style={{ background: 'linear-gradient(135deg, #0284c7, #0369a1)' }}>Save</button>
               </div>
 
               <div className="border-t border-white/10 mt-2 pt-4">
@@ -1579,6 +1669,25 @@ const TeacherDashboard = () => {
         danger
       />
 
+      <ConfirmModal
+        isOpen={showApproveConfirm}
+        title="Approve Student?"
+        message={`Are you sure you want to approve ${studentToApprove?.username} for this classroom?`}
+        confirmLabel="Approve"
+        onConfirm={confirmApproveStudent}
+        onCancel={() => setShowApproveConfirm(false)}
+      />
+
+      <ConfirmModal
+        isOpen={showRegenerateConfirm}
+        title="Regenerate Join Code?"
+        message="The current join code will stop working immediately. Any students who haven't joined yet will need the new code."
+        confirmLabel={isRegenerating ? "Regenerating..." : "Regenerate"}
+        onConfirm={handleRegenerateCode}
+        onCancel={() => setShowRegenerateConfirm(false)}
+        danger
+      />
+
       {editTarget && (
         <EditAssignmentModal
           isOpen
@@ -1601,6 +1710,11 @@ const TeacherDashboard = () => {
           onClose={() => setReviewTarget(null)}
         />
       )}
+      <ChangePasswordModal 
+        isOpen={showChangePassword} 
+        onClose={() => setShowChangePassword(false)} 
+        username={user?.username} 
+      />
     </div>
   );
 };

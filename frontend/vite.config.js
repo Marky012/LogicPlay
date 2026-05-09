@@ -8,7 +8,11 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['icon-192.png', 'icon-512.png'],
+      injectRegister: null,
+      devOptions: {
+        enabled: true,
+      },
+      includeAssets: ['favicon.ico', 'icon-192.png', 'icon-512.png', 'apple-touch-icon.png'],
       manifest: {
         name: 'LogicPlay - Digital Logic Gamified',
         short_name: 'LogicPlay',
@@ -16,38 +20,42 @@ export default defineConfig({
         start_url: '/',
         display: 'standalone',
         background_color: '#0f172a',
-        theme_color: '#3b82f6',
+        theme_color: '#00d4ff',
         icons: [
           {
-            src: '/icon-192.png',
+            src: 'icon-192.png',
             sizes: '192x192',
             type: 'image/png',
             purpose: 'any maskable'
           },
           {
-            src: '/icon-512.png',
+            src: 'icon-512.png',
             sizes: '512x512',
             type: 'image/png',
             purpose: 'any maskable'
           }
         ]
-      },
-      workbox: {
-        runtimeCaching: [
-          {
-            urlPattern: /^https?:\/\/localhost:8000\/api\/.*/i,
-            handler: 'NetworkFirst',
-            options: {
-              cacheName: 'api-cache',
-              expiration: {
-                maxEntries: 50,
-                maxAgeSeconds: 60 * 60 * 24 * 7 // 1 week
-              },
-              networkTimeoutSeconds: 5
-            }
-          }
-        ]
       }
     })
   ],
+  preview: {
+    allowedHosts: ['.ngrok-free.dev', '.ngrok.io'],
+    proxy: {
+      '/api': {
+        target: 'http://localhost:8000',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/api/, '')
+      }
+    }
+  },
+  server: {
+    allowedHosts: ['.ngrok-free.dev', '.ngrok.io'],
+    proxy: {
+      '/api': {
+        target: 'http://localhost:8000',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/api/, '')
+      }
+    }
+  }
 })

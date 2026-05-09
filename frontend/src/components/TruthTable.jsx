@@ -8,7 +8,7 @@ const TruthTable = ({ gates, wires }) => {
   const rows = useMemo(() => {
     if (inputGates.length === 0 || outputGates.length === 0) return [];
     const n = inputGates.length;
-    if (n > 4) return []; // avoid huge tables
+    if (n > 6) return []; // avoid huge tables
 
     return Array.from({ length: 2 ** n }).map((_, rowIdx) => {
       const inputStates = inputGates.map((g, i) => (rowIdx >> (n - 1 - i)) & 1);
@@ -30,24 +30,24 @@ const TruthTable = ({ gates, wires }) => {
   if (outputGates.length === 0) return (
     <div className="text-xs italic p-3" style={{ color: 'var(--c-text-muted)' }}>Add an OUTPUT gate to see results.</div>
   );
-  if (inputGates.length > 4) return (
-    <div className="text-xs p-3" style={{ color: 'var(--c-text-muted)' }}>Truth table limited to ≤ 4 inputs.</div>
+  if (inputGates.length > 6) return (
+    <div className="text-xs p-3 text-center" style={{ color: 'var(--c-text-muted)' }}>Truth table limited to ≤ 6 inputs.</div>
   );
 
   return (
-    <div className="overflow-auto">
-      <table className="w-full text-xs font-mono border-collapse">
-        <thead>
+    <div className="overflow-x-auto overflow-y-auto max-h-[300px] hidden-scrollbar" style={{ WebkitOverflowScrolling: 'touch' }}>
+      <table className="w-full text-[11px] font-mono border-collapse min-w-full table-auto">
+        <thead className="sticky top-0 z-10" style={{ background: 'var(--c-surface-2)' }}>
           <tr>
             {inputGates.map((g, i) => (
-              <th key={g.id} className="px-2 py-1.5 text-center font-bold uppercase tracking-wider"
+              <th key={g.id} className="px-3 py-2 text-center font-bold uppercase tracking-wider whitespace-nowrap"
                 style={{ color: 'var(--neon-amber)', borderBottom: '1px solid rgba(245,158,11,0.2)', background: 'rgba(245,158,11,0.06)' }}>
                 I{i + 1}
               </th>
             ))}
-            <th className="px-1 py-1.5" style={{ background: 'var(--c-border-dim)', borderBottom: '1px solid var(--c-border-dim)' }} />
+            <th className="px-1.5 py-2" style={{ background: 'var(--c-border-dim)', borderBottom: '1px solid var(--c-border-dim)' }} />
             {outputGates.map((g, i) => (
-              <th key={g.id} className="px-2 py-1.5 text-center font-bold uppercase tracking-wider"
+              <th key={g.id} className="px-3 py-2 text-center font-bold uppercase tracking-wider whitespace-nowrap"
                 style={{ color: 'var(--neon-red)', borderBottom: '1px solid rgba(255,51,102,0.2)', background: 'rgba(255,51,102,0.06)' }}>
                 O{i + 1}
               </th>
@@ -61,14 +61,14 @@ const TruthTable = ({ gates, wires }) => {
               <tr key={ri} className="transition-colors"
                 style={{ background: allHigh ? 'rgba(57,255,20,0.08)' : ri % 2 === 0 ? 'var(--c-surface-2)' : 'transparent' }}>
                 {row.inputs.map((v, i) => (
-                  <td key={i} className="px-2 py-1 text-center font-semibold"
+                  <td key={i} className="px-3 py-1.5 text-center font-semibold whitespace-nowrap"
                     style={{ color: v === 1 ? 'var(--neon-amber)' : 'var(--c-text-dim)', borderRight: '1px solid var(--c-border-dim)' }}>
                     {v}
                   </td>
                 ))}
-                <td className="px-0.5" style={{ background: 'var(--c-surface-2)', borderRight: '1px solid var(--c-border-dim)' }}>→</td>
+                <td className="px-1 text-center opacity-40" style={{ background: 'var(--c-surface-2)', borderRight: '1px solid var(--c-border-dim)' }}>→</td>
                 {row.outputs.map((v, i) => (
-                  <td key={i} className="px-2 py-1 text-center font-black"
+                  <td key={i} className="px-3 py-1.5 text-center font-black whitespace-nowrap"
                     style={{ color: v === 1 ? 'var(--neon-green)' : v === 0 ? 'var(--neon-red)' : 'var(--c-text-dim)' }}>
                     {v === '?' ? '?' : v}
                   </td>
@@ -79,7 +79,7 @@ const TruthTable = ({ gates, wires }) => {
         </tbody>
       </table>
       {rows.length === 0 && (
-        <p className="text-xs italic p-3" style={{ color: 'var(--c-text-muted)' }}>Wire your circuit to see outputs.</p>
+        <p className="text-xs italic p-4 text-center" style={{ color: 'var(--c-text-muted)' }}>Wire your circuit to see outputs.</p>
       )}
     </div>
   );

@@ -1,5 +1,5 @@
 import React, { useState, useContext, useEffect, useRef } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { DndProvider } from 'react-dnd';
 import { TouchBackend } from 'react-dnd-touch-backend';
 import { AuthContext } from '../context/AuthContext';
@@ -67,6 +67,18 @@ const FeedbackBanner = ({ feedback }) => {
 };
 
 /* ── Stats Row ── */
+const PlaygroundIcon = () => (
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>
+  </svg>
+);
+
+const ProfileIcon = () => (
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
+  </svg>
+);
+
 const StatChip = ({ label, value, color }) => (
   <div className="flex flex-col items-center px-3 py-2 rounded-xl transition-all duration-200"
        style={{ 
@@ -110,11 +122,13 @@ const Playground = () => {
   const [resetViewTrigger, setResetViewTrigger]   = useState(0);
   const [viewMode, setViewMode]                   = useState(false);
   const [showClearConfirm, setShowClearConfirm]   = useState(false);
+  const [activeAssignment, setActiveAssignment]   = useState(null);
   const [showSaveModal, setShowSaveModal]         = useState(false);
   const [savedCircuitCount, setSavedCircuitCount] = useState(0);
   const [showSubmitModal, setShowSubmitModal]     = useState(false);
   const [reportCardData, setReportCardData]       = useState(null);
   const [showBinaryOutput, setShowBinaryOutput]   = useState(false);
+  
   // Flag to skip the first gates/wires effect after a circuit load (prevents false unsaved-changes)
   const skipNextChangeRef = useRef(false);
 
@@ -172,6 +186,27 @@ const Playground = () => {
         // Safely clear location state to prevent reload crashing
         navigate(location.pathname, { replace: true, state: {} });
       }
+    }
+
+    if (location.state?.loadAssignment) {
+      const a = location.state.loadAssignment;
+      setActiveAssignment(a);
+      
+      setSelectedChallenge({
+        id: `assignment_${a.id}`,
+        title: a.title,
+        description: a.description,
+        target_gate: a.target_gate,
+        points: a.points_reward
+      });
+      skipNextChangeRef.current = true;
+      setGates([]); setWires([]);
+      setViewMode(false);
+      setHasUnsavedChanges(false);
+      lastSavedCircuitRef.current = getCircuitHash([], []);
+      addToast('info', `Active Assignment: ${a.title}`);
+      
+      navigate(location.pathname, { replace: true, state: {} });
     }
   }, [location.state, navigate, location.pathname]);
 
@@ -236,6 +271,14 @@ const Playground = () => {
       setFeedback(`Circuit graded. Local eval score: ${evalResult.score}. Not all outputs are HIGH.`);
       addToast('info', `Score: ${evalResult.score} — keep building!`);
     }
+
+    // Automatically prompt save circuit modal after grading if not already saved
+    setTimeout(() => {
+      const currentHash = getCircuitHash(gates, wires);
+      if (lastSavedCircuitRef.current !== currentHash) {
+        setShowSaveModal(true);
+      }
+    }, 600);
   };
 
   // Opens the naming modal; pre-flight validation happens here
@@ -300,34 +343,59 @@ const Playground = () => {
 
   return (
     <DndProvider backend={TouchBackend} options={{ enableMouseEvents: true }}>
-      <div className="flex flex-col min-h-screen" style={{ background: 'var(--c-bg)' }}>
+      <div className="flex flex-col h-[100dvh] overflow-hidden select-none" style={{ background: 'var(--c-bg)' }}>
         {/* ── NavBar ── */}
         <NavBar profileData={profileData} />
 
-        {/* ── Gamification HUD ── */}
-        <div className="px-2 sm:px-4 pt-1.5 sm:pt-3 pb-1 sm:pb-2 flex items-center justify-between flex-wrap gap-2"
+
+        {/* ── User HUD & Navigation ── */}
+        <div className="px-2 sm:px-4 pt-1.5 sm:pt-3 pb-1 sm:pb-2 flex flex-wrap items-center gap-2"
              style={{ borderBottom: '1px solid var(--c-border-dim)' }}>
+
+          {/* XP / Gamification rectangle — always first */}
           <Gamification
             points={profileData.points || 0}
             level={profileData.level || 1}
             badges={profileData.badges || []}
           />
+
+          {/* Nav tabs — right-aligned on desktop, full-width below HUD on mobile/tablet */}
+          <div className="flex items-center gap-1.5 sm:ml-auto w-full sm:w-auto">
+            {[
+              { to: '/playground', label: 'Playground', icon: <PlaygroundIcon /> },
+              { to: '/profile',    label: 'Profile',    icon: <ProfileIcon /> },
+            ].map(({ to, label, icon }) => {
+              const active = location.pathname === to;
+              return (
+                <Link key={to} to={to}
+                      className="flex-1 sm:flex-initial flex items-center justify-center sm:justify-start gap-2 px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all duration-200"
+                      style={{
+                        background: active ? 'rgba(0, 212, 255, 0.12)' : 'var(--c-surface)',
+                        color: active ? 'var(--neon-blue)' : 'var(--c-text-muted)',
+                        border: `1.5px solid ${active ? 'rgba(0, 212, 255, 0.3)' : 'var(--c-border)'}`,
+                      }}>
+                  {icon}
+                  {label}
+                </Link>
+              );
+            })}
+          </div>
+
           {selectedChallenge && (
             <div className="flex items-center gap-2 px-4 py-1.5 rounded-xl text-sm animate-slide-in-right"
                  style={{ background: 'color-mix(in srgb, var(--neon-blue), transparent 93%)', border: '1px solid color-mix(in srgb, var(--neon-blue), transparent 75%)' }}>
               <span className="text-xs" style={{ color: 'var(--neon-blue)' }}>📋</span>
               <span className="font-bold text-xs" style={{ color: 'var(--c-text)' }}>{selectedChallenge.title}</span>
-              <button className="hover:opacity-60 transition-opacity text-xs ml-1" style={{ color: 'var(--c-text-muted)' }} onClick={() => setSelectedChallenge(null)}>✕</button>
             </div>
           )}
         </div>
 
         {/* ── Main Layout ── */}
-        <main className="flex-1 flex flex-col lg:flex-row p-2 lg:p-3 gap-2 lg:gap-3 overflow-auto lg:overflow-hidden">
+        <main className="flex-1 flex flex-col lg:flex-row p-2 lg:p-3 gap-2 lg:gap-3 overflow-hidden">
 
           {/* Left: Toolbar only (hidden on mobile, shows on desktop) */}
           {!viewMode && (
-            <div className="flex-shrink-0 relative z-50 w-full lg:w-48 xl:w-56">
+            <div className="flex-shrink-0 relative z-[10] w-full lg:w-48 xl:w-56 overflow-y-auto lg:overflow-visible max-h-[40vh] lg:max-h-none">
               <Toolbar />
             </div>
           )}
@@ -347,7 +415,7 @@ const Playground = () => {
           />
 
           {/* Right: Tabbed Panel + Challenge List — desktop only */}
-          <div className="hidden lg:flex flex-col gap-3 flex-shrink-0 overflow-y-auto lg:w-[230px]" style={{ maxHeight: '100%' }}>
+          <div className="hidden lg:flex flex-col gap-3 flex-shrink-0 overflow-y-auto lg:w-[240px] px-2 py-1" style={{ maxHeight: '100%' }}>
             {viewMode ? (
               <>
                 {/* View Mode controls panel */}
@@ -432,7 +500,7 @@ const Playground = () => {
 
                 {/* Controls Tab */}
                 {activeTab === 'Controls' && (
-                  <div className="flex flex-col gap-3 animate-fade-in">
+                  <div className="flex flex-col gap-3.5 animate-fade-in p-0.5">
                     <SimButton isPlaying={isPlaying} onClick={isPlaying ? stopSimulation : startSimulation} />
 
                     <button onClick={() => { triggerFeedback('click'); handleGrade(); }} disabled={grading || gates.length === 0}
@@ -608,43 +676,6 @@ const Playground = () => {
                   selectedChallengeId={selectedChallenge?.id}
                 />
 
-                {/* ── Scroll to Top (Desktop Sidebar) ── */}
-                <div className="flex justify-center mt-6 mb-8">
-                  <button
-                    onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
-                    className="group relative flex items-center h-10 w-10 hover:w-44 rounded-full overflow-hidden border active:scale-95"
-                    style={{
-                      background: 'color-mix(in srgb, var(--neon-blue), transparent 92%)',
-                      borderColor: 'color-mix(in srgb, var(--neon-blue), transparent 75%)',
-                      color: 'var(--neon-blue)',
-                      transition: 'width 0.45s cubic-bezier(0.34,1.56,0.64,1), box-shadow 0.3s ease, border-color 0.3s ease, background 0.3s ease',
-                    }}
-                    onMouseEnter={e => {
-                      e.currentTarget.style.boxShadow = '0 0 18px rgba(0,212,255,0.3), 0 0 40px rgba(0,212,255,0.08)';
-                      e.currentTarget.style.borderColor = 'rgba(0,212,255,0.6)';
-                      e.currentTarget.style.background = 'rgba(0,212,255,0.14)';
-                    }}
-                    onMouseLeave={e => {
-                      e.currentTarget.style.boxShadow = 'none';
-                      e.currentTarget.style.borderColor = 'rgba(0,212,255,0.25)';
-                      e.currentTarget.style.background = 'rgba(0,212,255,0.08)';
-                    }}
-                  >
-                    {/* Icon — pinned left, always visible */}
-                    <div className="absolute left-0 w-10 h-10 flex items-center justify-center flex-shrink-0">
-                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round" className="group-hover:-translate-y-0.5 transition-transform duration-300">
-                        <polyline points="18 15 12 9 6 15" />
-                      </svg>
-                    </div>
-                    {/* Text — fades in, offset from icon */}
-                    <span
-                      className="pl-10 pr-4 opacity-0 group-hover:opacity-100 text-[10px] font-black uppercase tracking-[0.12em] whitespace-nowrap select-none"
-                      style={{ transition: 'opacity 0.25s ease 0.15s' }}
-                    >
-                      Scroll to top
-                    </span>
-                  </button>
-                </div>
               </>
             )}
           </div>
@@ -869,6 +900,32 @@ const Playground = () => {
               </>
             )}
             <div className="section-divider" />
+            
+            {/* ── Active Assignment HUD ── */}
+            {activeAssignment && (
+              <div className="rounded-xl overflow-hidden mb-4 animate-fade-in" style={{ background: 'var(--c-surface-2)', border: '1px solid color-mix(in srgb, var(--neon-blue), transparent 60%)', boxShadow: '0 0 15px rgba(0,212,255,0.1)' }}>
+                <div className="px-3 py-2 border-b flex items-center justify-between" style={{ background: 'rgba(0,212,255,0.05)', borderBottom: '1px solid rgba(0,212,255,0.2)' }}>
+                  <span className="text-[10px] font-black uppercase tracking-widest" style={{ color: 'var(--neon-blue)' }}>📋 Active Assignment</span>
+                  <button onClick={() => { setActiveAssignment(null); setSelectedChallenge(null); }} className="text-[9px] font-black text-red-400 hover:text-red-500 transition-colors uppercase">✕ Exit</button>
+                </div>
+                <div className="p-3">
+                  <p className="font-bold text-sm leading-tight" style={{ color: 'var(--c-text)' }}>{activeAssignment.title}</p>
+                  {activeAssignment.description && <p className="text-[11px] mt-1.5 leading-relaxed" style={{ color: 'var(--c-text-muted)' }}>{activeAssignment.description}</p>}
+                  
+                  <div className="mt-3 flex items-center gap-2 flex-wrap">
+                    {activeAssignment.target_gate && (
+                      <span className="text-[9px] font-bold px-2 py-0.5 rounded-full" style={{ background: 'rgba(124,58,237,0.1)', color: 'var(--neon-purple)', border: '1px solid rgba(124,58,237,0.3)' }}>
+                        🎯 Target: {activeAssignment.target_gate}
+                      </span>
+                    )}
+                    <span className="text-[9px] font-bold px-2 py-0.5 rounded-full" style={{ background: 'rgba(245,158,11,0.1)', color: 'var(--neon-amber)', border: '1px solid rgba(245,158,11,0.3)' }}>
+                      ⭐ +{activeAssignment.points_reward} XP
+                    </span>
+                  </div>
+                </div>
+              </div>
+            )}
+
             <ChallengeList
               onSelectChallenge={(c) => { setSelectedChallenge(c); addToast('info', `Challenge: ${c.title}`); }}
               selectedChallengeId={selectedChallenge?.id}
@@ -884,6 +941,7 @@ const Playground = () => {
         isOpen={showSubmitModal}
         studentUsername={user?.username}
         circuitData={{ gates, wires }}
+        preselectedAssignmentId={activeAssignment?.id}
         onSubmitted={({ assignmentTitle }) => {
           setShowSubmitModal(false);
           const score = evaluateCircuit(gates, wires).score || 0;

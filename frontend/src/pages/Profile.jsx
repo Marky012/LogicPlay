@@ -1,11 +1,15 @@
 import React, { useState, useEffect, useContext } from 'react';
 import { AuthContext } from '../context/AuthContext';
-import { getUser, getCircuits, getSubmissionsByStudent, getStudentClassrooms, joinClassroom, deleteCircuit, getLeaderboard, renameCircuit, deleteUser, unenrollStudent } from '../utils/api';
+import { getUser, getCircuits, getSubmissionsByStudent, getStudentClassrooms, joinClassroom, deleteCircuit, getLeaderboard, renameCircuit, deleteUser, unenrollStudent, syncCircuitToCloud, deleteSubmission, resetDismissedAssignments } from '../utils/api';
+import { deleteOfflineCircuit } from '../utils/offlineSync';
 import { Link, useNavigate } from 'react-router-dom';
 import NavBar from '../components/NavBar';
+import SubmissionReviewModal from '../components/SubmissionReviewModal';
+import ClassAssignmentsModal from '../components/ClassAssignmentsModal';
 import ConfirmModal from '../components/ConfirmModal';
 import RenameModal from '../components/RenameModal';
 import TypeToConfirmModal from '../components/TypeToConfirmModal';
+import ChangePasswordModal from '../components/ChangePasswordModal';
 import { triggerFeedback } from '../utils/feedback';
 
 const RANKS = [
@@ -51,6 +55,7 @@ const Profile = () => {
   const [joinError, setJoinError] = useState('');
   const [circuitToDelete, setCircuitToDelete] = useState(null);
   const [renameTarget, setRenameTarget] = useState(null);
+  const [viewingClass, setViewingClass] = useState(null);
   const [deleting, setDeleting] = useState(false);
   const [loading, setLoading]         = useState(true);
   const [subsOpen, setSubsOpen]       = useState(true);
@@ -59,6 +64,11 @@ const Profile = () => {
   const [deletingAccount, setDeletingAccount] = useState(false);
   const [classToLeave, setClassToLeave] = useState(null);
   const [leavingClass, setLeavingClass] = useState(false);
+  const [syncingIds, setSyncingIds] = useState(new Set());
+  const [showJoinConfirm, setShowJoinConfirm] = useState(false);
+  const [showAlreadyJoined, setShowAlreadyJoined] = useState(false);
+  const [alreadyJoinedClass, setAlreadyJoinedClass] = useState('');
+  const [showChangePassword, setShowChangePassword] = useState(false);
 
   const handleDeleteAccount = async () => {
     setDeletingAccount(true);
@@ -75,32 +85,40 @@ const Profile = () => {
     }
   };
 
-  const handleJoinClass = async (e) => {
+  const handleJoinClass = (e) => {
     e.preventDefault();
-    if (!joinCode.trim()) return;
+    const codeToJoin = joinCode.trim().toUpperCase();
+    if (!codeToJoin) return;
+    
+    const alreadyJoined = classes.find(c => c.join_code === codeToJoin);
+    if (alreadyJoined) {
+      triggerFeedback('error');
+      setAlreadyJoinedClass(alreadyJoined.name);
+      setShowAlreadyJoined(true);
+      return;
+    }
+
     triggerFeedback('click');
+    setShowJoinConfirm(true);
+  };
+
+  const confirmJoinClass = async () => {
     setJoining(true);
     setJoinError('');
     try {
       await joinClassroom(joinCode.trim(), user.username);
       setJoinCode('');
-      // Refresh classrooms
-      const updatedClasses = await getStudentClassrooms(user.username);
-      setClasses(Array.isArray(updatedClasses) ? updatedClasses : []);
+      // Refresh all user data (including enrollment status)
+      await fetchData();
       triggerFeedback('success');
     } catch (err) {
       triggerFeedback('error');
-      const detail = err.response?.data?.detail;
-      if (typeof detail === 'string') {
-        setJoinError(detail);
-      } else if (Array.isArray(detail)) {
-        const errorMsg = detail[0]?.loc ? `${detail[0].loc[detail[0].loc.length - 1]}: ${detail[0].msg}` : (detail[0]?.msg || 'Validation error.');
-        setJoinError(errorMsg);
-      } else {
-        setJoinError('Failed to join class. Check code.');
-      }
+      const detail = err.response?.data?.detail || 'Failed to join class. Check code.';
+      setJoinError(detail);
     } finally {
       setJoining(false);
+      setShowJoinConfirm(true); // Close the modal
+      setShowJoinConfirm(false); 
     }
   };
 
@@ -109,7 +127,7 @@ const Profile = () => {
     setLeavingClass(true);
     try {
       await unenrollStudent(classToLeave.id, user.username);
-      setClasses(prev => prev.filter(c => c.id !== classToLeave.id));
+      await fetchData();
       setClassToLeave(null);
       triggerFeedback('delete');
     } catch (e) {
@@ -125,10 +143,15 @@ const Profile = () => {
     if (!circuitToDelete) return;
     setDeleting(true);
     try {
-      await deleteCircuit(circuitToDelete.id);
+      if (circuitToDelete.is_offline_only) {
+        await deleteOfflineCircuit(circuitToDelete.id);
+      } else {
+        await deleteCircuit(circuitToDelete.id);
+      }
       // Refresh circuits list
       setCircuits(prev => prev.filter(c => c.id !== circuitToDelete.id));
       setCircuitToDelete(null);
+      triggerFeedback('delete');
     } catch (err) {
       console.error('Failed to delete circuit:', err);
       alert('Failed to delete circuit. Please try again.');
@@ -136,6 +159,55 @@ const Profile = () => {
       setDeleting(false);
     }
   };
+
+  const handleDeleteSubmission = async (subId) => {
+    if (!window.confirm("Permanently delete this submission? This cannot be undone.")) return;
+    try {
+      await deleteSubmission(subId, user.username);
+      setSubmissions(prev => prev.filter(s => s.id !== subId));
+      triggerFeedback('delete');
+    } catch (e) {
+      console.error(e);
+      alert('Failed to delete submission.');
+    }
+  };
+
+  const handleSyncToCloud = async (circuit) => {
+    if (!navigator.onLine) {
+      alert("You need to be online to sync to cloud!");
+      return;
+    }
+    
+    setSyncingIds(prev => new Set(prev).add(circuit.id));
+    try {
+      const synced = await syncCircuitToCloud(circuit, profileData.id);
+      // Remove from local DB
+      await deleteOfflineCircuit(circuit.id);
+      // Update local state: swap local for remote or just refresh
+      setCircuits(prev => prev.map(c => c.id === circuit.id ? synced : c));
+      triggerFeedback('success');
+    } catch (err) {
+      console.error('Failed to sync circuit:', err);
+      alert('Failed to sync to cloud. The name might already exist on your online account.');
+    } finally {
+      setSyncingIds(prev => {
+        const next = new Set(prev);
+        next.delete(circuit.id);
+        return next;
+      });
+    }
+  };
+
+  const handleSyncAll = async () => {
+    const localOnes = circuits.filter(c => c.is_offline_only);
+    if (localOnes.length === 0) return;
+    
+    triggerFeedback('global');
+    for (const c of localOnes) {
+      await handleSyncToCloud(c);
+    }
+  };
+
 
   const [fetchError, setFetchError] = useState(null);
 
@@ -153,39 +225,45 @@ const Profile = () => {
     }
   };
 
-  useEffect(() => {
-    const fetchProfile = async () => {
-      if (user?.username) {
+
+  const fetchData = React.useCallback(async () => {
+    if (user?.username) {
+      try {
+        const data     = await getUser(user.username);
+        const circData = await getCircuits(user.username);
+        setProfileData(data);
+        setCircuits(circData);
+        // Fetch submissions (non-fatal if missing)
         try {
-          const data     = await getUser(user.username);
-          const circData = await getCircuits(user.username);
-          setProfileData(data);
-          setCircuits(circData);
-          // Fetch submissions (non-fatal if missing)
-          try {
-            const subData = await getSubmissionsByStudent(user.username);
-            setSubmissions(Array.isArray(subData) ? subData : []);
-          } catch (_) {}
-          
-          // Fetch classes
-          try {
-            const clsData = await getStudentClassrooms(user.username);
-            setClasses(Array.isArray(clsData) ? clsData : []);
-          } catch (_) {}
-          // Fetch leaderboard
-          try {
-            const lbData = await getLeaderboard(20);
-            setLeaderboard(Array.isArray(lbData) ? lbData : []);
-          } catch (_) {}
-        } catch (e) {
-          console.error(e);
-          setFetchError(e.message || String(e));
-        }
-        finally { setLoading(false); }
+          const subData = await getSubmissionsByStudent(user.username);
+          setSubmissions(Array.isArray(subData) ? subData : []);
+        } catch (_) {}
+        
+        // Fetch classes
+        try {
+          const clsData = await getStudentClassrooms(user.username);
+          setClasses(Array.isArray(clsData) ? clsData : []);
+        } catch (_) {}
+        // Fetch leaderboard
+        try {
+          const lbData = await getLeaderboard(20);
+          setLeaderboard(Array.isArray(lbData) ? lbData : []);
+        } catch (_) {}
+      } catch (e) {
+        console.error(e);
+        setFetchError(e.message || String(e));
+      } finally { 
+        setLoading(false); 
       }
-    };
-    fetchProfile();
+    } else {
+      // If no user yet, but called, we must eventually stop loading
+      setLoading(false);
+    }
   }, [user]);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
 
   if (loading) return (
     <div className="flex flex-col min-h-screen" style={{ background: 'var(--c-bg)' }}>
@@ -218,14 +296,27 @@ const Profile = () => {
   const allBadges = ['First Circuit', 'Perfect Score', 'Gates Master', 'Speed Demon'];
 
   return (
-    <div className="flex flex-col min-h-screen" style={{ background: 'var(--c-bg)' }}>
+    <div className="flex flex-col h-[100dvh] overflow-hidden" style={{ background: 'var(--c-bg)' }}>
       <NavBar profileData={profileData} />
 
       {/* ══════════════════════════════════════════════════
           MOBILE / TABLET  — stacked scrollable layout
           (hidden on lg+)
          ══════════════════════════════════════════════════ */}
-      <div className="lg:hidden max-w-4xl mx-auto w-full px-4 py-6 flex flex-col gap-6">
+      <div className="lg:hidden flex-1 overflow-y-auto hidden-scrollbar w-full">
+        <div className="max-w-4xl mx-auto w-full px-4 py-6 flex flex-col gap-6">
+          {/* Back button */}
+          <button 
+            onClick={() => navigate('/playground')}
+            className="self-start flex items-center gap-2 text-xs font-black uppercase tracking-[0.2em] transition-all duration-200 hover:translate-x-[-4px]"
+            style={{ color: 'var(--c-text-muted)' }}
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="19" y1="12" x2="5" y2="12"></line>
+              <polyline points="12 19 5 12 12 5"></polyline>
+            </svg>
+            <span>Playground</span>
+          </button>
 
         {/* Hero banner */}
         <div className="glass-panel p-6 flex flex-col sm:flex-row items-center gap-5 animate-slide-up shadow-2xl"
@@ -235,16 +326,15 @@ const Profile = () => {
                boxShadow: `0 20px 50px -12px color-mix(in srgb, ${rank.color}, transparent 95%)` 
              }}>
           <div className="relative flex-shrink-0">
-            <div className="w-20 h-20 rounded-2xl flex items-center justify-center text-3xl font-black select-none"
+            <div className="w-20 h-20 rounded-2xl flex items-center justify-center text-3xl font-black select-none transition-all duration-300 avatar-neon-blue"
                  style={{
-                   background: `linear-gradient(135deg, ${rank.color}25, ${rank.color}10)`,
-                   border: `2.5px solid ${rank.color}`,
-                   boxShadow: `0 8px 24px -6px ${rank.color}66`,
-                   color: `color-mix(in srgb, ${rank.color}, #000 60%)`,
+                   borderColor: rank.color,
+                   boxShadow: `0 0 20px color-mix(in srgb, ${rank.color}, transparent 60%)`,
+                   background: `linear-gradient(135deg, color-mix(in srgb, ${rank.color}, transparent 80%), color-mix(in srgb, ${rank.color}, transparent 90%))`
                  }}>
               {initials}
             </div>
-            <div className="absolute -bottom-1.5 -right-1.5 px-2.5 py-1 rounded-full text-[10px] font-black tracking-wider uppercase shadow-lg"
+            <div className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 px-2.5 py-1 rounded-full text-[9px] font-black tracking-[0.15em] uppercase shadow-lg border border-white/20 whitespace-nowrap"
                  style={{ background: rank.color, color: '#fff' }}>
               {rank.label}
             </div>
@@ -252,6 +342,14 @@ const Profile = () => {
           <div className="flex flex-col flex-1 w-full">
             <h1 className="text-2xl font-black mb-0.5" style={{ color: 'var(--c-text)' }}>{user.username}</h1>
             <p className="text-sm text-slate-400 mb-3">Level {profileData.level} · {rank.label}</p>
+            <div className="flex gap-2 mb-3">
+              <button 
+                onClick={() => setShowChangePassword(true)}
+                className="px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all duration-200 border border-blue-500/30 text-blue-400 hover:bg-blue-500/10"
+              >
+                Change Password
+              </button>
+            </div>
             <div className="flex flex-col gap-1">
               <div className="flex justify-between text-xs font-semibold">
                 <span style={{ color: 'var(--neon-green)' }}>{profileData.points} XP</span>
@@ -307,10 +405,24 @@ const Profile = () => {
         <LeaderboardPanel leaderboard={leaderboard} currentUsername={user.username} />
 
         {/* Saved Circuits */}
-        <MobileCircuitsPanel circuits={circuits} navigate={navigate} setCircuitToDelete={setCircuitToDelete} setRenameTarget={setRenameTarget} />
+        <MobileCircuitsPanel 
+          circuits={circuits} 
+          navigate={navigate} 
+          setCircuitToDelete={setCircuitToDelete} 
+          setRenameTarget={setRenameTarget}
+          handleSyncAll={handleSyncAll}
+          handleSyncToCloud={handleSyncToCloud}
+          syncingIds={syncingIds}
+        />
 
         {/* Submissions */}
-        <MobileSubmissionsPanel submissions={submissions} subsOpen={subsOpen} setSubsOpen={setSubsOpen} />
+        <MobileSubmissionsPanel 
+          submissions={submissions} 
+          subsOpen={subsOpen} 
+          setSubsOpen={setSubsOpen}
+          handleDeleteSubmission={handleDeleteSubmission}
+        />
+        </div>
       </div>
 
       {/* ══════════════════════════════════════════════════
@@ -322,22 +434,33 @@ const Profile = () => {
         {/* ── Left sidebar: identity + stats + badges ── */}
         <aside className="flex-shrink-0 w-80 xl:w-96 flex flex-col gap-4 p-5 overflow-y-auto"
                style={{ borderRight: '1px solid var(--c-border-dim)' }}>
+          {/* Back button */}
+          <button 
+            onClick={() => navigate('/playground')}
+            className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] transition-all duration-200 hover:translate-x-[-4px] mb-2"
+            style={{ color: 'var(--c-text-muted)' }}
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="19" y1="12" x2="5" y2="12"></line>
+              <polyline points="12 19 5 12 12 5"></polyline>
+            </svg>
+            <span>Playground</span>
+          </button>
 
           {/* Hero card */}
           <div className="glass-panel p-6 flex flex-col items-center gap-4 animate-fade-in text-center"
                style={{ border: `1px solid ${rank.color}33`, boxShadow: `0 12px 40px -12px color-mix(in srgb, ${rank.color}, transparent 80%)` }}>
             {/* Avatar */}
             <div className="relative">
-              <div className="w-24 h-24 rounded-2xl flex items-center justify-center text-4xl font-black select-none transition-all duration-300"
+              <div className="w-24 h-24 rounded-2xl flex items-center justify-center text-4xl font-black select-none transition-all duration-300 avatar-neon-blue"
                    style={{
-                     background: `linear-gradient(135deg, ${rank.color}30, ${rank.color}12)`,
-                     border: `3px solid ${rank.color}`,
-                     boxShadow: `0 0 32px ${rank.color}44, 0 8px 24px -6px ${rank.color}66`,
-                     color: `color-mix(in srgb, ${rank.color}, white 30%)`,
+                     borderColor: rank.color,
+                     boxShadow: `0 0 32px color-mix(in srgb, ${rank.color}, transparent 60%), 0 8px 16px -4px color-mix(in srgb, ${rank.color}, transparent 50%)`,
+                     background: `linear-gradient(135deg, color-mix(in srgb, ${rank.color}, transparent 80%), color-mix(in srgb, ${rank.color}, transparent 90%))`
                    }}>
                 {initials}
               </div>
-              <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 px-3 py-1 rounded-full text-[10px] font-black tracking-wider uppercase shadow-lg whitespace-nowrap"
+              <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 px-3 py-1 rounded-full text-[9px] font-black tracking-[0.2em] uppercase shadow-xl whitespace-nowrap border border-white/20"
                    style={{ background: rank.color, color: '#fff' }}>
                 {rank.label}
               </div>
@@ -346,7 +469,13 @@ const Profile = () => {
             {/* Name & level */}
             <div className="mt-2 flex flex-col items-center gap-1">
               <h1 className="text-2xl font-black" style={{ color: 'var(--c-text)' }}>{user.username}</h1>
-              <p className="text-xs text-slate-400 font-medium uppercase tracking-widest">Level {profileData.level} · {rank.label}</p>
+              <p className="text-xs text-slate-400 font-medium uppercase tracking-widest mb-1">Level {profileData.level} · {rank.label}</p>
+              <button 
+                onClick={() => setShowChangePassword(true)}
+                className="px-4 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all duration-200 border border-blue-500/30 text-blue-400 hover:bg-blue-500/10 mb-2"
+              >
+                Update Password
+              </button>
             </div>
 
             {/* XP Bar */}
@@ -423,6 +552,26 @@ const Profile = () => {
             </button>
             <span className="text-[9px] text-slate-500 uppercase tracking-widest">Irreversible Action</span>
           </div>
+
+          {/* Reset Dismissed Assignments (Desktop) */}
+          <div className="glass-panel p-5 animate-fade-in flex flex-col items-center justify-center gap-2" style={{ border: '1px solid var(--c-border-dim)' }}>
+            <h3 className="text-[10px] font-black uppercase tracking-widest mb-1" style={{ color: 'var(--c-text-muted)' }}>Preferences</h3>
+            <button 
+              onClick={async () => {
+                if (window.confirm("Show all previously hidden assignments?")) {
+                  try {
+                    await resetDismissedAssignments(user.username);
+                    triggerFeedback('success');
+                    await fetchData(); // Refresh data without reload
+                  } catch (e) { alert("Failed to reset assignments"); }
+                }
+              }}
+              className="w-full py-2.5 text-[10px] font-black rounded-xl transition-all duration-200 hover:bg-white/5 uppercase tracking-wider"
+              style={{ border: '1px solid var(--c-border-dim)', color: 'var(--c-text-muted)' }}
+            >
+              Reset Hidden Assignments
+            </button>
+          </div>
         </aside>
 
         {/* ── Right panel: classes + circuits + submissions + leaderboard ── */}
@@ -473,14 +622,19 @@ const Profile = () => {
                     const isPending = enrollState && enrollState.status === 'pending';
 
                     return (
-                      <div key={c.id} className="p-4 rounded-xl flex flex-col gap-2 transition-all duration-200 hover:scale-[1.02] group relative"
+                      <div key={c.id} 
+                           onClick={(e) => {
+                             if (e.target.closest('.leave-btn')) return;
+                             setViewingClass(c);
+                           }}
+                           className="p-4 rounded-xl flex flex-col gap-2 transition-all duration-200 hover:scale-[1.02] cursor-pointer group relative"
                            style={{ background: 'var(--c-surface-2)', border: isPending ? '1px solid rgba(255,165,0,0.3)' : '1px solid var(--c-border-dim)' }}>
                         <div className="flex items-start justify-between gap-2">
                           <span className="font-bold text-sm" style={{ color: 'var(--c-text)' }}>{c.name}</span>
                           <button 
                             onClick={() => setClassToLeave(c)}
                             title="Leave Class"
-                            className="opacity-0 group-hover:opacity-100 p-1.5 rounded-lg bg-red-500/10 text-red-500 hover:bg-red-500/20 transition-all"
+                            className="leave-btn opacity-0 group-hover:opacity-100 p-1.5 rounded-lg bg-red-500/10 text-red-500 hover:bg-red-500/20 transition-all"
                           >
                             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
                           </button>
@@ -518,7 +672,14 @@ const Profile = () => {
                   </span>
                 )}
               </h2>
-              <Link to="/playground" className="btn-primary text-xs py-1.5 px-3">+ New Circuit</Link>
+              <div className="flex gap-2">
+                {circuits.some(c => c.is_offline_only) && navigator.onLine && (
+                  <button onClick={handleSyncAll} className="btn-ghost text-[10px] py-1.5 px-3 border-emerald-500/30 text-emerald-500 hover:bg-emerald-500/10">
+                    ☁️ Sync All
+                  </button>
+                )}
+                <Link to="/playground" className="btn-primary text-xs py-1.5 px-3">+ New Circuit</Link>
+              </div>
             </div>
             {circuits.length === 0 ? (
               <div className="text-center py-6">
@@ -533,7 +694,13 @@ const Profile = () => {
                        style={{ background: 'var(--c-surface-2)', border: '1px solid var(--c-border-dim)' }}>
                     <div>
                       <span className="text-sm font-semibold" style={{ color: 'var(--c-text)' }}>{c.circuit_data?.name || `Circuit #${c.id}`}</span>
-                      <span className="text-xs text-slate-600 ml-3">{new Date(c.created_at).toLocaleDateString()}</span>
+                      {c.is_offline_only && (
+                        <span className="text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full ml-2"
+                              style={{ background: 'rgba(255,165,0,0.1)', color: 'orange', border: '1px solid rgba(255,165,0,0.2)' }}>
+                          Local Only
+                        </span>
+                      )}
+                      <span className="text-xs text-slate-600 ml-3">{new Date(c.created_at || c.saved_at).toLocaleDateString()}</span>
                     </div>
                     <div className="flex items-center gap-2">
                       <span className="text-xs font-black px-2 py-0.5 rounded-full"
@@ -557,6 +724,20 @@ const Profile = () => {
                           <path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path>
                         </svg>
                       </button>
+                      {c.is_offline_only && navigator.onLine && (
+                        <button 
+                          onClick={() => handleSyncToCloud(c)}
+                          disabled={syncingIds.has(c.id)}
+                          className="text-xs font-bold p-1.5 rounded-lg transition-all duration-200 hover:bg-emerald-500/10 group/sync"
+                          style={{ border: '1px solid var(--c-border-dim)' }} title="Sync to Cloud"
+                        >
+                          {syncingIds.has(c.id) ? (
+                            <div className="w-3.5 h-3.5 border-2 border-emerald-500 border-t-transparent animate-spin rounded-full" />
+                          ) : (
+                            <span className="text-emerald-500 group-hover/sync:scale-110 transition-transform">☁️</span>
+                          )}
+                        </button>
+                      )}
                       <button onClick={() => setCircuitToDelete(c)}
                         className="text-xs font-bold p-1.5 rounded-lg transition-all duration-200 hover:bg-red-500/10 group/del"
                         style={{ border: '1px solid var(--c-border-dim)' }} title="Delete Circuit">
@@ -604,7 +785,7 @@ const Profile = () => {
                   {submissions.map(sub => {
                     const isGraded = sub.status === 'graded';
                     const isNew = isGraded && sub.teacher_score != null;
-                    return <SubmissionCard key={sub.id} sub={sub} isNew={isNew} />;
+                    return <SubmissionCard key={sub.id} sub={sub} isNew={isNew} onDelete={handleDeleteSubmission} />;
                   })}
                 </div>
               )
@@ -632,6 +813,17 @@ const Profile = () => {
         onCancel={() => setClassToLeave(null)}
         danger={true}
       />
+      <ChangePasswordModal 
+        isOpen={showChangePassword} 
+        onClose={() => setShowChangePassword(false)} 
+        username={user.username} 
+      />
+      <ClassAssignmentsModal
+        isOpen={!!viewingClass}
+        classData={viewingClass}
+        studentUsername={user?.username}
+        onCancel={() => setViewingClass(null)}
+      />
       <RenameModal
         isOpen={!!renameTarget}
         initialName={renameTarget?.circuit_data?.name || `Circuit #${renameTarget?.id || ''}`}
@@ -647,12 +839,29 @@ const Profile = () => {
         onConfirm={handleDeleteAccount}
         onCancel={() => setShowDeleteAccount(false)}
       />
+      <ConfirmModal
+        isOpen={showJoinConfirm}
+        title="Join Classroom?"
+        message={`Are you sure you want to join the classroom with code "${joinCode}"?`}
+        confirmLabel={joining ? 'Joining...' : 'Join Class'}
+        onConfirm={confirmJoinClass}
+        onCancel={() => setShowJoinConfirm(false)}
+      />
+      <ConfirmModal
+        isOpen={showAlreadyJoined}
+        title="Already Enrolled"
+        message={`You are already enrolled in "${alreadyJoinedClass}".`}
+        confirmLabel="OK"
+        onConfirm={() => { setShowAlreadyJoined(false); setJoinCode(''); }}
+        onCancel={() => { setShowAlreadyJoined(false); setJoinCode(''); }}
+        hideCancel={true}
+      />
     </div>
   );
 };
 
 // ── Submission Card ──────────────────────────────────────────────
-const SubmissionCard = ({ sub, isNew }) => {
+const SubmissionCard = ({ sub, isNew, onDelete }) => {
   const [open, setOpen] = useState(false);
   const isGraded = sub.status === 'graded';
   const scoreColor = sub.teacher_score >= 80 ? '#39ff14' : sub.teacher_score >= 50 ? '#ffd700' : '#ff3366';
@@ -670,49 +879,62 @@ const SubmissionCard = ({ sub, isNew }) => {
            boxShadow: isNew ? '0 0 16px rgba(124,58,237,0.1)' : 'none',
          }}>
       {/* Card header — always visible */}
-      <button
-        onClick={() => setOpen(o => !o)}
-        className="w-full flex items-center gap-3 px-4 py-3 hover:bg-black/5 dark:hover:bg-white/5 transition-colors text-left"
-      >
-        {/* Status dot */}
-        <div className="w-2 h-2 rounded-full flex-shrink-0"
-             style={{ background: isGraded ? '#39ff14' : '#ffd700', boxShadow: isGraded ? '0 0 6px #39ff14' : 'none' }} />
+      <div className="flex items-center gap-1 pr-2">
+        <button
+          onClick={() => setOpen(o => !o)}
+          className="flex-1 flex items-center gap-3 px-4 py-3 hover:bg-black/5 dark:hover:bg-white/5 transition-colors text-left"
+        >
+          {/* Status dot */}
+          <div className="w-2 h-2 rounded-full flex-shrink-0"
+               style={{ background: isGraded ? '#39ff14' : '#ffd700', boxShadow: isGraded ? '0 0 6px #39ff14' : 'none' }} />
 
-        <div className="flex-1 min-w-0">
-          <p className="font-bold text-sm truncate" style={{ color: 'var(--c-text)' }}>{sub.assignment_title || `Assignment #${sub.assignment_id}`}</p>
-          <p className="text-[10px] text-slate-500">
-            Submitted {formatDate(sub.submitted_at)}
-            {sub.is_late && <span className="text-red-400 ml-2">⚠ Late</span>}
-          </p>
-        </div>
+          <div className="flex-1 min-w-0">
+            <p className="font-bold text-sm truncate" style={{ color: 'var(--c-text)' }}>{sub.assignment_title || `Assignment #${sub.assignment_id}`}</p>
+            <p className="text-[10px] text-slate-500">
+              Submitted {formatDate(sub.submitted_at)}
+              {sub.is_late && <span className="text-red-400 ml-2">⚠ Late</span>}
+            </p>
+          </div>
 
-        {/* Scores */}
-        <div className="flex items-center gap-3 flex-shrink-0">
-          {sub.auto_score != null && (
-            <div className="text-center">
-              <p className="text-[9px] text-slate-500 uppercase">Auto</p>
-              <p className="text-xs font-black" style={{ color: 'var(--neon-blue)' }}>{sub.auto_score}</p>
-            </div>
-          )}
-          {isGraded && sub.teacher_score != null ? (
-            <div className="text-center">
-              <p className="text-[9px] text-slate-500 uppercase">Grade</p>
-              <p className="text-xs font-black" style={{ color: scoreColor }}>{sub.teacher_score}</p>
-            </div>
-          ) : (
-            <span className="text-[10px] px-2 py-0.5 rounded-full font-bold"
-                  style={{ background: 'rgba(255,215,0,0.1)', color: '#ffd700', border: '1px solid rgba(255,215,0,0.25)' }}>
-              Pending
-            </span>
-          )}
+          {/* Scores */}
+          <div className="flex items-center gap-3 flex-shrink-0">
+            {sub.auto_score != null && (
+              <div className="text-center">
+                <p className="text-[9px] text-slate-500 uppercase">Auto</p>
+                <p className="text-xs font-black" style={{ color: 'var(--neon-blue)' }}>{sub.auto_score}</p>
+              </div>
+            )}
+            {isGraded && sub.teacher_score != null ? (
+              <div className="text-center">
+                <p className="text-[9px] text-slate-500 uppercase">Grade</p>
+                <p className="text-xs font-black" style={{ color: scoreColor }}>{sub.teacher_score}</p>
+              </div>
+            ) : (
+              <span className="text-[10px] px-2 py-0.5 rounded-full font-bold"
+                    style={{ background: 'rgba(255,215,0,0.1)', color: '#ffd700', border: '1px solid rgba(255,215,0,0.25)' }}>
+                Pending
+              </span>
+            )}
 
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"
-               className="text-slate-500 transition-transform duration-200"
-               style={{ transform: open ? 'rotate(180deg)' : 'rotate(0)' }}>
-            <polyline points="6 9 12 15 18 9"/>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"
+                 className="text-slate-500 transition-transform duration-200"
+                 style={{ transform: open ? 'rotate(180deg)' : 'rotate(0)' }}>
+              <polyline points="6 9 12 15 18 9"/>
+            </svg>
+          </div>
+        </button>
+
+        {/* Delete Button */}
+        <button
+          onClick={(e) => { e.stopPropagation(); onDelete(sub.id); }}
+          className="p-2 rounded-lg hover:bg-red-500/10 text-slate-500 hover:text-red-500 transition-colors"
+          title="Delete Submission"
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+            <polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
           </svg>
-        </div>
-      </button>
+        </button>
+      </div>
 
       {/* Expandable feedback */}
       {open && (
@@ -779,6 +1001,7 @@ const MobileClassesPanel = ({ classes, joinCode, setJoinCode, joining, joinError
       </div>
     </div>
     <div className="flex flex-col gap-3">
+      {/* Search/Join form */}
       <form onSubmit={handleJoinClass} className="flex gap-2">
         <input type="text" placeholder="Enter Join Code..." value={joinCode}
           onChange={e => setJoinCode(e.target.value.toUpperCase())}
@@ -791,15 +1014,51 @@ const MobileClassesPanel = ({ classes, joinCode, setJoinCode, joining, joinError
           {joining ? '...' : 'Join'}
         </button>
       </form>
+      
+      {/* Mobile Reset (Preferences) */}
+      <div className="flex items-center gap-2 p-3 rounded-xl border border-dashed border-white/10" style={{ background: 'rgba(255,255,255,0.02)' }}>
+        <div className="flex-1">
+          <p className="text-[10px] font-black uppercase tracking-widest leading-none mb-1" style={{ color: 'var(--c-text-muted)' }}>Preferences</p>
+          <p className="text-[10px] text-slate-500">Restore all hidden assignments</p>
+        </div>
+        <button 
+          onClick={async () => {
+            if (window.confirm("Show all previously hidden assignments?")) {
+              try {
+                await resetDismissedAssignments(profileData.username);
+                triggerFeedback('success');
+                window.location.reload(); // Refresh to see changes
+              } catch (e) { alert("Failed to reset assignments"); }
+            }
+          }}
+          className="px-3 py-1.5 text-[9px] font-black rounded-lg border border-slate-600/30 text-slate-400 hover:bg-white/5 active:scale-95 transition-all"
+        >
+          RESET
+        </button>
+      </div>
+
       {joinError && <p className="text-xs text-red-400">{joinError}</p>}
       {classes.length === 0 ? (
         <p className="text-slate-500 text-sm">You are not enrolled in any classes yet.</p>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-1">
           {classes.map(c => (
-            <div key={c.id} className="p-4 rounded-xl flex flex-col gap-1"
+            <div key={c.id} 
+                 onClick={(e) => {
+                   if (e.target.closest('.leave-btn')) return;
+                   setViewingClass(c);
+                 }}
+                 className="p-4 rounded-xl flex flex-col gap-1 transition-all group cursor-pointer"
                  style={{ background: 'var(--c-surface-2)', border: '1px solid var(--c-border-dim)' }}>
-              <span className="font-bold text-sm" style={{ color: 'var(--c-text)' }}>{c.name}</span>
+              <div className="flex items-center justify-between">
+                <span className="font-bold text-sm" style={{ color: 'var(--c-text)' }}>{c.name}</span>
+                <button 
+                  onClick={() => setClassToLeave(c)}
+                  className="leave-btn p-1.5 rounded-lg bg-red-500/10 text-red-500"
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
+                </button>
+              </div>
               <span className="text-xs text-slate-400">Enrolled</span>
             </div>
           ))}
@@ -844,14 +1103,24 @@ const MobileBadgesPanel = ({ allBadges, profileData }) => {
   );
 };
 
-const MobileCircuitsPanel = ({ circuits, navigate, setCircuitToDelete, setRenameTarget }) => (
+const MobileCircuitsPanel = ({ 
+  circuits, navigate, setCircuitToDelete, setRenameTarget, 
+  handleSyncAll, handleSyncToCloud, syncingIds 
+}) => (
   <div className="glass-panel p-5 shadow-xl">
     <div className="flex items-center justify-between mb-4">
       <h2 className="text-sm font-black uppercase tracking-widest flex items-center gap-2" style={{ color: 'var(--neon-blue)' }}>
         <svg width="1.2em" height="1.2em" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
         Saved Circuits
       </h2>
-      <Link to="/playground" className="btn-primary text-xs py-1.5 px-3">+ New Circuit</Link>
+      <div className="flex gap-2">
+        {circuits.some(c => c.is_offline_only) && navigator.onLine && (
+          <button onClick={handleSyncAll} className="btn-ghost text-[9px] py-1.5 px-2.5 border-emerald-500/30 text-emerald-500">
+            ☁️ Sync
+          </button>
+        )}
+        <Link to="/playground" className="btn-primary text-[10px] py-1.5 px-2.5">+ New</Link>
+      </div>
     </div>
     {circuits.length === 0 ? (
       <div className="text-center py-6">
@@ -865,7 +1134,13 @@ const MobileCircuitsPanel = ({ circuits, navigate, setCircuitToDelete, setRename
                style={{ background: 'var(--c-surface-2)', border: '1px solid var(--c-border-dim)' }}>
             <div>
               <span className="text-sm font-semibold" style={{ color: 'var(--c-text)' }}>{c.circuit_data?.name || `Circuit #${c.id}`}</span>
-              <span className="text-xs text-slate-600 ml-3">{new Date(c.created_at).toLocaleDateString()}</span>
+              {c.is_offline_only && (
+                <span className="text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full ml-2"
+                      style={{ background: 'rgba(255,165,0,0.1)', color: 'orange', border: '1px solid rgba(255,165,0,0.2)' }}>
+                  Local Only
+                </span>
+              )}
+              <span className="text-xs text-slate-600 ml-3">{new Date(c.created_at || c.saved_at).toLocaleDateString()}</span>
             </div>
             <div className="flex items-center gap-2">
               <span className="text-xs font-black px-2 py-0.5 rounded-full" style={{ color: c.score >= 100 ? 'var(--neon-green)' : 'var(--neon-amber)', background: c.score >= 100 ? 'rgba(57,255,20,0.1)' : 'rgba(245,158,11,0.1)', border: `1px solid ${c.score >= 100 ? 'rgba(57,255,20,0.25)' : 'rgba(245,158,11,0.25)'}` }}>
@@ -874,6 +1149,17 @@ const MobileCircuitsPanel = ({ circuits, navigate, setCircuitToDelete, setRename
               <button onClick={() => navigate('/playground', { state: { loadCircuit: c } })}
                 className="text-xs font-bold px-3 py-1.5 rounded-lg hover:bg-white/10"
                 style={{ border: '1px solid rgba(0,212,255,0.3)', color: 'var(--neon-blue)' }}>Load</button>
+              {c.is_offline_only && navigator.onLine && (
+                <button 
+                  onClick={() => handleSyncToCloud(c)}
+                  disabled={syncingIds.has(c.id)}
+                  className="p-1.5 rounded-lg border border-emerald-500/30 text-emerald-500 text-xs"
+                >
+                  {syncingIds.has(c.id) ? (
+                    <div className="w-3 h-3 border-2 border-emerald-500 border-t-transparent animate-spin rounded-full" />
+                  ) : '☁️'}
+                </button>
+              )}
               <button onClick={() => setCircuitToDelete(c)}
                 className="text-xs font-bold p-1.5 rounded-lg hover:bg-red-500/10 group/del"
                 style={{ border: '1px solid var(--c-border-dim)' }} title="Delete Circuit">
@@ -889,7 +1175,9 @@ const MobileCircuitsPanel = ({ circuits, navigate, setCircuitToDelete, setRename
   </div>
 );
 
-const MobileSubmissionsPanel = ({ submissions, subsOpen, setSubsOpen }) => (
+const MobileSubmissionsPanel = ({ 
+  submissions, subsOpen, setSubsOpen, handleDeleteSubmission 
+}) => (
   <div className="glass-panel p-5 shadow-xl">
     <button onClick={() => setSubsOpen(o => !o)} className="w-full flex items-center justify-between mb-4">
       <h2 className="text-sm font-black uppercase tracking-widest flex items-center gap-2" style={{ color: 'var(--neon-blue)' }}>
@@ -921,7 +1209,7 @@ const MobileSubmissionsPanel = ({ submissions, subsOpen, setSubsOpen }) => (
           {submissions.map(sub => {
             const isGraded = sub.status === 'graded';
             const isNew = isGraded && sub.teacher_score != null;
-            return <SubmissionCard key={sub.id} sub={sub} isNew={isNew} />;
+            return <SubmissionCard key={sub.id} sub={sub} isNew={isNew} onDelete={handleDeleteSubmission} />;
           })}
         </div>
       )

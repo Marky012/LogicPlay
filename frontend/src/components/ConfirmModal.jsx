@@ -83,7 +83,7 @@ const ConfirmModal = ({
 
         {/* Message */}
         {message && (
-          <p className="text-center text-sm leading-relaxed" style={{ color: 'var(--c-text-muted)' }}>{message}</p>
+          <div className="text-center text-sm leading-relaxed" style={{ color: 'var(--c-text-muted)' }}>{message}</div>
         )}
 
         {/* Actions */}

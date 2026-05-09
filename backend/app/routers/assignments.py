@@ -10,10 +10,15 @@ router = APIRouter(
 )
 
 
-def _enrich(assignment: models.Assignment, db: Session) -> schemas.AssignmentOut:
+def _enrich(assignment: models.Assignment, db: Session, student_id: int = None) -> schemas.AssignmentOut:
     teacher = crud.get_user(db, assignment.teacher_id)
     count = len(assignment.submissions) if assignment.submissions else 0
     classroom_name = assignment.classroom.name if assignment.classroom else None
+    
+    has_submitted = False
+    if student_id and assignment.submissions:
+        has_submitted = any(sub.student_id == student_id for sub in assignment.submissions)
+
     return schemas.AssignmentOut(
         id=assignment.id,
         teacher_id=assignment.teacher_id,
@@ -28,6 +33,7 @@ def _enrich(assignment: models.Assignment, db: Session) -> schemas.AssignmentOut
         points_reward=assignment.points_reward,
         created_at=assignment.created_at,
         submission_count=count,
+        has_submitted=has_submitted,
     )
 
 
@@ -64,12 +70,17 @@ def list_student_assignments(username: str, db: Session = Depends(get_db)):
     student = crud.get_user_by_username(db, username)
     if not student:
         raise HTTPException(status_code=404, detail="Student not found")
-    class_ids = [e.classroom_id for e in student.enrollments]
-    # We optionally include ones with no classroom_id (global) or just strictly enrolled classes
+    # Only show assignments from classes where enrollment is approved
+    class_ids = [e.classroom_id for e in student.enrollments if e.status == "approved"]
+    
+    # Filter out dismissed assignments
+    dismissed_ids = [d.assignment_id for d in student.dismissed_assignments]
+    
     assignments = db.query(models.Assignment).filter(
-        (models.Assignment.classroom_id.in_(class_ids)) | (models.Assignment.classroom_id == None)
+        ((models.Assignment.classroom_id.in_(class_ids)) | (models.Assignment.classroom_id == None)),
+        (~models.Assignment.id.in_(dismissed_ids)) if dismissed_ids else True
     ).order_by(models.Assignment.created_at.desc()).all()
-    return [_enrich(a, db) for a in assignments]
+    return [_enrich(a, db, student.id) for a in assignments]
 
 
 @router.get("/{assignment_id}", response_model=schemas.AssignmentOut)
@@ -111,3 +122,21 @@ def delete_assignment(
         raise HTTPException(status_code=403, detail="Not authorized to delete this assignment")
     crud.delete_assignment(db, assignment_id)
     return {"detail": "Assignment deleted"}
+
+
+@router.post("/{assignment_id}/dismiss")
+def dismiss_assignment(assignment_id: int, username: str, db: Session = Depends(get_db)):
+    student = crud.get_user_by_username(db, username)
+    if not student:
+        raise HTTPException(status_code=404, detail="Student not found")
+    crud.dismiss_assignment(db, student.id, assignment_id)
+    return {"detail": "Assignment dismissed"}
+
+
+@router.delete("/dismissed/reset")
+def reset_dismissed_assignments(username: str, db: Session = Depends(get_db)):
+    student = crud.get_user_by_username(db, username)
+    if not student:
+        raise HTTPException(status_code=404, detail="Student not found")
+    crud.reset_dismissed_assignments(db, student.id)
+    return {"detail": "Dismissed assignments reset"}

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useDrag } from 'react-dnd';
 import { triggerFeedback } from '../utils/feedback';
+import { useTheme } from '../context/ThemeContext';
 
 /* ── SVG Logic Gate Symbols ─────────────────────────────── */
 const GateSVG = ({ type, color, size = 36 }) => {
@@ -104,7 +105,17 @@ const GATE_CONFIGS = {
   NAND:    { color: 'var(--neon-cyan)',   label: 'NAND',    hint: 'NOT AND – universal gate' },
   NOR:     { color: 'var(--neon-orange)', label: 'NOR',     hint: 'NOT OR – universal gate' },
   XOR:     { color: 'var(--neon-lime)',   label: 'XOR',     hint: 'Out=1 if inputs DIFFER' },
-  XNOR:    { color: '#ff33cc',            label: 'XNOR',    hint: 'Out=1 if inputs are SAME' },
+  XNOR:    { color: 'var(--neon-purple)', label: 'XNOR',   hint: 'Out=1 if inputs are SAME' },
+};
+
+/* resolved colours for use inside SVG / inline styles that can’t use var() */
+const GATE_RESOLVED_DARK = {
+  INPUT: '#f59e0b', OUTPUT: '#ff3366', AND: '#00d4ff', OR: '#39ff14',
+  NOT: '#bf5fff',  NAND: '#00ffea',   NOR: '#ff6b2b', XOR: '#b4ff00', XNOR: '#bf5fff',
+};
+const GATE_RESOLVED_LIGHT = {
+  INPUT: '#b45309', OUTPUT: '#be123c', AND: '#0369a1', OR: '#15803d',
+  NOT: '#7c3aed',  NAND: '#0e7490',   NOR: '#c2410c', XOR: '#4d7c0f', XNOR: '#7c3aed',
 };
 
 /* ── Desktop card (unchanged look) ──────────────────────── */
@@ -115,18 +126,27 @@ const DesktopGateCard = ({ type, cfg }) => {
     collect: (m) => ({ isDragging: !!m.isDragging() }),
   }), [type]);
 
+  const { isLight } = useTheme();
+  const rc = isLight ? GATE_RESOLVED_LIGHT[type] : GATE_RESOLVED_DARK[type];
+
   return (
     <div ref={dragRef} className={`relative flex items-center gap-3 p-3 rounded-xl cursor-grab active:cursor-grabbing transition-all duration-200 border w-full group ${isDragging ? 'opacity-40 scale-95 shadow-none' : 'hover:scale-[1.01] hover:shadow-xl'}`}
          style={{
-           background: `color-mix(in srgb, ${cfg.color}, var(--c-surface) 92%)`,
-           borderColor: `color-mix(in srgb, ${cfg.color}, transparent 60%)`,
-           boxShadow: isDragging ? 'none' : `0 4px 12px color-mix(in srgb, ${cfg.color}, transparent 95%)`
+           background: isLight
+             ? `color-mix(in srgb, ${rc}, white 88%)`
+             : `color-mix(in srgb, ${rc}, var(--c-surface) 92%)`,
+           borderColor: isLight
+             ? `color-mix(in srgb, ${rc}, transparent 40%)`
+             : `color-mix(in srgb, ${rc}, transparent 60%)`,
+           boxShadow: isDragging ? 'none' : isLight
+             ? `0 2px 8px color-mix(in srgb, ${rc}, transparent 82%)`
+             : `0 4px 12px color-mix(in srgb, ${rc}, transparent 95%)`
          }}>
       <div className="flex-shrink-0 w-9 h-6 flex items-center justify-center">
-        <GateSVG type={type} color={cfg.color} />
+        <GateSVG type={type} color={rc} />
       </div>
         <div className="flex flex-col min-w-0">
-          <p className="font-black text-sm leading-none tracking-wide" style={{ color: cfg.color }}>{cfg.label}</p>
+          <p className="font-black text-sm leading-none tracking-wide" style={{ color: rc }}>{cfg.label}</p>
         </div>
       <div className="ml-auto flex flex-col gap-0.5 opacity-30 group-hover:opacity-60">
         {[0, 1, 2].map(i => <div key={i} className="flex gap-0.5">{[0, 1].map(j => <div key={j} className="w-[3px] h-[3px] rounded-full bg-slate-400" />)}</div>)}
@@ -135,18 +155,19 @@ const DesktopGateCard = ({ type, cfg }) => {
       <div className="absolute bottom-full mb-3 left-1/2 -translate-x-1/2 px-3 py-2 rounded-xl text-xs whitespace-nowrap opacity-0 group-hover:opacity-100 transition-all duration-300 pointer-events-none z-50 shadow-2xl backdrop-blur-md"
         style={{ 
           background: 'var(--c-bg-glass)', 
-          border: `1.5px solid ${cfg.color}`, 
-          color: cfg.color,
-          boxShadow: `0 10px 30px -5px color-mix(in srgb, ${cfg.color}, transparent 80%)`
+          border: `1.5px solid ${rc}`, 
+          color: rc,
+          boxShadow: `0 10px 30px -5px color-mix(in srgb, ${rc}, transparent 80%)`
         }}>
         <div className="font-black uppercase tracking-widest text-[9px] mb-1 opacity-60 text-center">Logic Help</div>
         {cfg.hint}
         <div className="absolute top-full left-1/2 -translate-x-1/2 -translate-y-1.5 w-2.5 h-2.5 rotate-45 border-b border-r"
-          style={{ background: 'var(--c-bg-glass)', borderColor: cfg.color }} />
+          style={{ background: 'var(--c-bg-glass)', borderColor: rc }} />
       </div>
     </div>
   );
 };
+
 
 /* ── Mobile icon chip (tap-select) ──────────────────────── */
 const MobileGateChip = ({ type, cfg, isSelected, onSelect }) => {

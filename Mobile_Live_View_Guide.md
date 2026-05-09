@@ -33,7 +33,7 @@ Once you press enter, **Vite will print out a green URL that looks like this in 
 2. Type the exact `Network:` IP address and port that Vite gave you (e.g., `http://192.168.1.15:5173`).
 3. Press Go.
 
-### That's it! 🎉
+### That's it! 
 You now have the **Live View** on your phone! 
 Every time you hit save on a file on your PC, your phone screen will automatically and instantly refresh to show the new layout. You can now use your browser for the "Desktop View" and your phone for the "Mobile View" simultaneously with no duplicate tabs required on your PC.
 

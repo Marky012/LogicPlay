@@ -9,7 +9,7 @@ const formatDate = (dt) => {
   return { text: d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }), isLate };
 };
 
-const SubmitAssignmentModal = ({ isOpen, studentUsername, circuitData, onSubmitted, onCancel }) => {
+const SubmitAssignmentModal = ({ isOpen, studentUsername, circuitData, preselectedAssignmentId, onSubmitted, onCancel }) => {
   const [assignments, setAssignments] = useState([]);
   const [selected, setSelected] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -30,6 +30,10 @@ const SubmitAssignmentModal = ({ isOpen, studentUsername, circuitData, onSubmitt
     .then(([assignmentsData, classroomsData]) => {
       setAssignments(assignmentsData);
       setClassrooms(classroomsData);
+      if (preselectedAssignmentId) {
+        const found = assignmentsData.find(a => a.id === preselectedAssignmentId);
+        if (found && !found.has_submitted) setSelected(found);
+      }
     })
     .catch(() => setError('Failed to load classes and assignments'))
     .finally(() => setFetching(false));
@@ -115,41 +119,68 @@ const SubmitAssignmentModal = ({ isOpen, studentUsername, circuitData, onSubmitt
                 const due = formatDate(a.due_date);
                 const isSelected = selected?.id === a.id;
                 return (
-                  <button
-                    key={a.id}
-                    onClick={() => setSelected(a)}
-                    className="text-left p-4 rounded-xl transition-all duration-200"
-                    style={{
-                      background: isSelected ? 'var(--c-border-dim)' : 'var(--c-surface-2)',
-                      border: `1px solid ${isSelected ? 'var(--neon-blue)' : 'var(--c-border-dim)'}`,
-                    }}
-                  >
-                    <div className="flex items-start justify-between gap-2">
-                      <p className="font-bold text-sm leading-tight" style={{ color: 'var(--c-text)' }}>{a.title}</p>
-                      {isSelected && (
-                        <div className="w-4 h-4 rounded-full flex-shrink-0 flex items-center justify-center mt-0.5"
-                             style={{ background: 'var(--neon-blue)' }}>
-                          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3">
-                            <polyline points="20 6 9 17 4 12"/>
-                          </svg>
-                        </div>
-                      )}
-                    </div>
-                    {a.description && <p className="text-[11px] mt-1 leading-relaxed" style={{ color: 'var(--c-text-muted)' }}>{a.description}</p>}
-                    <div className="flex items-center gap-2 mt-2 flex-wrap">
-                      <span className="text-[10px] font-bold" style={{ color: 'var(--neon-blue)' }}>By {a.teacher_username}</span>
-                      {a.classroom_name && (
-                        <span className="text-[10px] font-bold" style={{ color: 'var(--neon-blue)' }}>{a.classroom_name}</span>
-                      )}
-                      {due && (
-                        <span className="text-[10px] font-bold" style={{ color: due.isLate ? 'var(--neon-red)' : 'var(--neon-green)' }}>
-                          {due.isLate ? '⚠ Was due ' : '📅 Due '}{due.text}
-                          {due.isLate && a.accept_late && <span style={{ color: 'var(--c-text-muted)' }}> (late ok)</span>}
-                        </span>
-                      )}
-                      <span className="text-[10px] font-bold" style={{ color: 'var(--neon-amber)' }}>+{a.points_reward} XP</span>
-                    </div>
-                  </button>
+                  <div className="relative group/card">
+                    <button
+                      key={a.id}
+                      onClick={() => setSelected(a)}
+                      className="w-full text-left p-4 rounded-xl transition-all duration-200"
+                      style={{
+                        background: isSelected ? 'var(--c-border-dim)' : 'var(--c-surface-2)',
+                        border: `1px solid ${isSelected ? 'var(--neon-blue)' : 'var(--c-border-dim)'}`,
+                      }}
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <p className="font-bold text-sm leading-tight" style={{ color: 'var(--c-text)' }}>{a.title}</p>
+                        {isSelected && (
+                          <div className="w-4 h-4 rounded-full flex-shrink-0 flex items-center justify-center mt-0.5"
+                               style={{ background: 'var(--neon-blue)' }}>
+                            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3">
+                              <polyline points="20 6 9 17 4 12"/>
+                            </svg>
+                          </div>
+                        )}
+                      </div>
+                      {a.description && <p className="text-[11px] mt-1 leading-relaxed" style={{ color: 'var(--c-text-muted)' }}>{a.description}</p>}
+                      <div className="flex items-center gap-2 mt-2 flex-wrap">
+                        <span className="text-[10px] font-bold" style={{ color: 'var(--neon-blue)' }}>By {a.teacher_username}</span>
+                        {a.classroom_name && (
+                          <span className="text-[10px] font-bold" style={{ color: 'var(--neon-blue)' }}>{a.classroom_name}</span>
+                        )}
+                        {due && (
+                          <span className="text-[10px] font-bold" style={{ color: due.isLate ? 'var(--neon-red)' : 'var(--neon-green)' }}>
+                            {due.isLate ? '⚠ Was due ' : '📅 Due '}{due.text}
+                          </span>
+                        )}
+                        <span className="text-[10px] font-bold" style={{ color: 'var(--neon-amber)' }}>+{a.points_reward} XP</span>
+                        {a.has_submitted && (
+                          <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-md" style={{ background: 'rgba(57,255,20,0.1)', color: 'var(--neon-green)', border: '1px solid rgba(57,255,20,0.3)' }}>
+                            ✓ Already Submitted
+                          </span>
+                        )}
+                      </div>
+                    </button>
+                    {/* Dismiss Button */}
+                    <button
+                      onClick={async (e) => {
+                        e.stopPropagation();
+                        if (window.confirm(`Hide "${a.title}" from your list?`)) {
+                          try {
+                            await dismissAssignment(a.id, studentUsername);
+                            setAssignments(prev => prev.filter(item => item.id !== a.id));
+                            if (selected?.id === a.id) setSelected(null);
+                          } catch (err) {
+                            alert("Failed to hide assignment");
+                          }
+                        }
+                      }}
+                      className="absolute top-2 right-2 p-1.5 rounded-lg opacity-0 group-hover/card:opacity-100 transition-all hover:bg-red-500/10 text-red-500/50 hover:text-red-500"
+                      title="Remove from list"
+                    >
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                        <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                      </svg>
+                    </button>
+                  </div>
                 );
               })}
             </div>
@@ -182,7 +213,7 @@ const SubmitAssignmentModal = ({ isOpen, studentUsername, circuitData, onSubmitt
               </button>
               <button
                 onClick={handleSubmit}
-                disabled={!selected || loading || (selected && formatDate(selected.due_date)?.isLate && !selected.accept_late)}
+                disabled={!selected || loading || selected.has_submitted || (selected && formatDate(selected.due_date)?.isLate && !selected.accept_late)}
                 className="flex-1 py-2.5 rounded-xl text-sm font-black text-white transition-all hover:scale-[1.02] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 flex items-center justify-center gap-2"
                 style={{ background: 'linear-gradient(135deg, #075985, #0369a1)', border: '1px solid rgba(0,130,200,0.5)', boxShadow: '0 0 16px rgba(0,130,200,0.3)' }}
               >

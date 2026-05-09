@@ -3,7 +3,7 @@ import { Link, useLocation } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import ConfirmModal from './ConfirmModal';
-import logo from '../assets/L0g1cPLAYicon001.png';
+import logo from '../assets/favicon.png';
 
 /* Sun icon for light mode */
 const SunIcon = () => (
@@ -62,6 +62,29 @@ const NavBar = ({ profileData }) => {
 
   const isLight = theme === 'light';
 
+  const [isOffline, setIsOffline] = useState(!navigator.onLine);
+  const [isInstalled, setIsInstalled] = useState(
+    window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone
+  );
+
+  React.useEffect(() => {
+    const handleOnline = () => setIsOffline(false);
+    const handleOffline = () => setIsOffline(true);
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    
+    // Check if running as PWA
+    const mql = window.matchMedia('(display-mode: standalone)');
+    const handleDisplayMode = (e) => setIsInstalled(e.matches);
+    mql.addEventListener('change', handleDisplayMode);
+
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+      mql.removeEventListener('change', handleDisplayMode);
+    };
+  }, []);
+
   const initials = user?.username
     ? user.username.slice(0, 2).toUpperCase()
     : '??';
@@ -87,7 +110,7 @@ const NavBar = ({ profileData }) => {
 
   return (
     <>
-      <header className="relative z-20 flex items-center justify-between px-3 sm:px-5 py-2.5 border-b"
+      <header className="sticky top-0 z-[1000] flex items-center justify-between px-3 sm:px-5 py-2.5 border-b"
               style={{
                 background: navBg,
                 backdropFilter: 'blur(12px)',
@@ -95,86 +118,125 @@ const NavBar = ({ profileData }) => {
                 transition: 'background 0.3s ease, border-color 0.3s ease',
               }}>
 
-        {/* ── Logo ── */}
-        <Link to={isTeacher ? '/teacher' : '/playground'} className="flex items-center gap-1.5 group flex-shrink-0">
-          <img
-            src={logo}
-            alt="LogicPlay Logo"
-            className="h-8 sm:h-10 object-contain transition-transform duration-300 hover:scale-105"
-            style={{ filter: isTeacher ? 'drop-shadow(0 0 12px rgba(0,130,200,0.7))' : 'drop-shadow(0 0 12px rgba(0,212,255,0.6))' }}
-          />
-        </Link>
+        <div className="flex items-center gap-4 sm:gap-8">
+          {/* ── Logo ── */}
+          <Link to={isTeacher ? '/teacher' : '/playground'} className="flex items-center gap-2 group flex-shrink-0">
+            <img
+              src={logo}
+              alt="LogicPlay Logo"
+              className="h-9 sm:h-10 object-contain transition-transform duration-300 hover:scale-105"
+              style={{ filter: isLight ? 'none' : (isTeacher ? 'drop-shadow(0 0 12px rgba(0,130,200,0.7))' : 'drop-shadow(0 0 12px rgba(0,212,255,0.6))') }}
+            />
+            <span className="inline-block text-lg sm:text-xl font-black tracking-tighter">
+              <span className="text-gradient-blue">Logic</span>
+              <span style={{ color: 'var(--c-text)' }}>Play</span>
+            </span>
+          </Link>
 
-        {/* ── Nav links ── */}
-        <nav className="flex items-center gap-1">
-          {navLinks.map(({ to, label, icon }) => {
-            const active = location.pathname === to;
-            return (
-              <Link key={to} to={to}
-                    className="flex items-center gap-2 px-2.5 sm:px-4 py-1.5 rounded-lg text-xs sm:text-sm font-semibold transition-all duration-200"
-                    style={{
-                      color: active ? (isTeacher ? 'var(--neon-blue)' : 'var(--neon-blue)') : 'var(--c-text-muted)',
-                      background: active ? (isTeacher ? 'rgba(0,130,200,0.12)' : 'rgba(0,212,255,0.1)') : 'transparent',
-                      border: `1px solid ${active ? (isTeacher ? 'rgba(0,130,200,0.35)' : 'rgba(0,212,255,0.3)') : 'transparent'}`,
-                    }}>
-                <span className="flex-shrink-0" style={{ opacity: active ? 1 : 0.7 }}>{icon}</span>
-                <span>{label}</span>
-              </Link>
-            );
-          })}
-        </nav>
+          {/* ── Teacher Nav links ── */}
+          {isTeacher && (
+            <nav className="hidden sm:flex items-center gap-1">
+              {teacherLinks.map(({ to, label, icon }) => {
+                const active = location.pathname === to;
+                return (
+                  <Link key={to} to={to}
+                        className="flex items-center gap-2 px-2.5 sm:px-4 py-1.5 rounded-lg text-xs sm:text-sm font-semibold transition-all duration-200"
+                        style={{
+                          color: active ? 'var(--neon-blue)' : 'var(--c-text-muted)',
+                          background: active ? 'rgba(0,130,200,0.12)' : 'transparent',
+                          border: `1px solid ${active ? 'rgba(0,130,200,0.35)' : 'transparent'}`,
+                        }}>
+                    <span className="flex-shrink-0" style={{ opacity: active ? 1 : 0.7 }}>{icon}</span>
+                    <span>{label}</span>
+                  </Link>
+                );
+              })}
+            </nav>
+          )}
+        </div>
 
         {/* ── Right: User info + theme toggle + logout ── */}
-        <div className="flex items-center gap-2">
-          <div className="flex items-center gap-1.5">
-            <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center text-xs font-bold select-none text-white"
-                 style={{
-                   background: isTeacher
-                     ? 'linear-gradient(135deg, #075985, #0369a1)'
-                     : 'linear-gradient(135deg, #0ea5e9, #bf5fff)',
-                   boxShadow: isTeacher ? '0 0 10px rgba(0,130,200,0.5)' : '0 0 10px rgba(0,212,255,0.4)',
-                 }}>
+        <div className="flex items-center gap-2 sm:gap-4">
+          <div className="flex items-center gap-1.5 sm:gap-3">
+            <div className={`w-8 h-8 sm:w-10 sm:h-10 rounded-xl text-xs sm:text-sm ${isTeacher ? 'avatar-neon-purple' : 'avatar-neon-blue'}`}>
               {initials}
             </div>
             <div className="hidden sm:flex flex-col">
-              <span className="text-sm font-medium max-w-[80px] truncate" style={{ color: 'var(--c-text)' }}>{user?.username}</span>
+              <span className="text-sm font-black tracking-tight" style={{ color: 'var(--c-text)' }}>{user?.username}</span>
               {isTeacher && (
-                <span className="text-[9px] font-black uppercase tracking-widest" style={{ color: 'var(--neon-blue)' }}>Instructor</span>
+                <div className="flex items-center gap-1.5 mt-0.5">
+                   <div className="w-1 h-1 rounded-full bg-blue-500 animate-pulse-glow" />
+                   <span className="text-[8px] font-black uppercase tracking-[0.2em] opacity-80" style={{ color: 'var(--neon-blue)' }}>Instructor</span>
+                </div>
               )}
             </div>
           </div>
 
-          {/* Theme Toggle */}
-          <button
-            id="theme-toggle-btn"
-            onClick={toggleTheme}
-            className="btn-theme-toggle"
-            title={isLight ? 'Switch to Dark Mode' : 'Switch to Light Mode'}
-            aria-label={isLight ? 'Switch to Dark Mode' : 'Switch to Light Mode'}
-          >
-            {isLight ? <MoonIcon /> : <SunIcon />}
-          </button>
+          <div className="flex items-center gap-2">
+            {/* Connection/PWA Status Badge */}
+            <div className="hidden sm:flex mr-1">
+              {isOffline ? (
+                <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg border border-amber-500/30 bg-amber-500/10">
+                  <div className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse-glow" />
+                  <span className="text-[9px] font-black uppercase tracking-widest text-amber-500">Offline</span>
+                </div>
+              ) : isInstalled ? (
+                <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg border border-emerald-500/30 bg-emerald-500/10" title="App Cached & Installed">
+                  <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                  <span className="text-[9px] font-black uppercase tracking-widest text-emerald-500">App Active</span>
+                </div>
+              ) : null}
+            </div>
 
-          {/* Logout */}
-          <button 
-            onClick={() => setShowLogoutConfirm(true)} 
-            className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-bold transition-all duration-200 group"
-            style={{
-              background: isLight ? 'rgba(239,68,68,0.05)' : 'rgba(255,51,102,0.05)',
-              border: isLight ? '1px solid rgba(239,68,68,0.2)' : '1px solid rgba(255,51,102,0.15)',
-              color: isLight ? '#dc2626' : 'var(--neon-red)',
-            }}
-          >
-            <span className="opacity-70 group-hover:opacity-100 transition-opacity"><LogoutIcon /></span>
-            <span className="hidden xs:inline">Logout</span>
-          </button>
+            {/* Theme Toggle */}
+            <button
+              id="theme-toggle-btn"
+              onClick={toggleTheme}
+              className="w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-300 hover:scale-105 active:scale-95"
+              style={{ 
+                background: 'rgba(0, 212, 255, 0.05)', 
+                border: '1.5px solid var(--c-border)', 
+                color: 'var(--c-text)',
+                backdropFilter: 'blur(8px)'
+              }}
+              title={isLight ? 'Switch to Dark Mode' : 'Switch to Light Mode'}
+            >
+              {isLight ? <MoonIcon /> : <SunIcon />}
+            </button>
+
+            {/* Logout */}
+            <button 
+              onClick={() => setShowLogoutConfirm(true)} 
+              className="btn-neon-red group !rounded-xl"
+            >
+              <span className="opacity-70 group-hover:opacity-100 group-hover:scale-110 transition-all"><LogoutIcon /></span>
+              <span className="hidden xs:inline">LOGOUT</span>
+            </button>
+          </div>
         </div>
       </header>
 
       <ConfirmModal
         isOpen={showLogoutConfirm}
         title="Log out?"
-        message={isTeacher ? "You'll be signed out of the instructor portal." : "You'll need to enter your username again to play."}
+        message={
+          <>
+            <p>
+              {isTeacher 
+                ? "You'll be signed out of the instructor portal." 
+                : "You'll need to enter your username again to play."}
+            </p>
+            {isOffline && (
+              <div className="mt-4 p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-600 dark:text-amber-500 text-[11px] font-medium leading-normal animate-pulse-glow text-left">
+                <div className="flex items-center gap-2 mb-1.5">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" /><line x1="12" y1="9" x2="12" y2="13" /><line x1="12" y1="17" x2="12.01" y2="17" /></svg>
+                  <span className="uppercase tracking-[0.1em] font-black text-[9px]">Offline Warning</span>
+                </div>
+                You may experience an interrupted login while offline. The game may require an internet connection to log back in successfully.
+              </div>
+            )}
+          </>
+        }
         confirmLabel="Log out"
         cancelLabel="Stay"
         danger

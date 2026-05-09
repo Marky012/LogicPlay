@@ -9,7 +9,10 @@ import Profile from './pages/Profile.jsx';
 import TeacherLogin from './pages/TeacherLogin.jsx';
 import TeacherDashboard from './pages/TeacherDashboard.jsx';
 import OfflineBanner from './components/OfflineBanner.jsx';
-import logo from './assets/L0g1cPLAYicon001.png';
+import PWAStatus from './components/PWAStatus.jsx';
+import { useToast } from './components/ToastNotification.jsx';
+import { getOfflineCircuits, deleteOfflineCircuit } from './utils/offlineSync.js';
+import { syncCircuitToCloud } from './utils/api.js';
 
 const ProtectedRoute = ({ children }) => {
   const { user, loading } = useContext(AuthContext);
@@ -40,53 +43,48 @@ const TeacherRoute = ({ children }) => {
 function AppRoutes() {
   const [isOffline, setIsOffline] = React.useState(!navigator.onLine);
   const [installPrompt, setInstallPrompt] = React.useState(null);
+  const { user } = useContext(AuthContext);
+  const addToast = useToast();
 
   React.useEffect(() => {
-    const handleOnline = () => setIsOffline(false);
+    const handleOnline = async () => {
+      setIsOffline(false);
+      
+      if (user && user.role !== 'teacher') {
+        try {
+          const offlineCircuits = await getOfflineCircuits();
+          if (offlineCircuits && offlineCircuits.length > 0) {
+            let syncedCount = 0;
+            for (const c of offlineCircuits) {
+              await syncCircuitToCloud(c, user.id);
+              await deleteOfflineCircuit(c.id);
+              syncedCount++;
+            }
+            if (syncedCount > 0) {
+              addToast('success', `Back online! Seamlessly synced ${syncedCount} circuit${syncedCount > 1 ? 's' : ''}.`);
+            }
+          }
+        } catch (e) {
+          console.error("Auto-sync interrupted:", e);
+        }
+      }
+    };
     const handleOffline = () => setIsOffline(true);
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
-    window.addEventListener('beforeinstallprompt', (e) => {
-      e.preventDefault();
-      setInstallPrompt(e);
-    });
     return () => {
       window.removeEventListener('online', handleOnline);
       window.removeEventListener('offline', handleOffline);
     };
   }, []);
 
-  const handleInstallClick = () => {
-    if (installPrompt) {
-      installPrompt.prompt();
-      installPrompt.userChoice.then(() => setInstallPrompt(null));
-    }
-  };
-
   return (
     <>
       <OfflineBanner isOffline={isOffline} />
-
-      {/* PWA install prompt */}
-      {installPrompt && (
-        <div className="fixed bottom-6 left-6 z-[9990] animate-slide-up glass-panel p-4 flex flex-col gap-2 max-w-[240px]"
-          style={{ border: '1px solid rgba(0,212,255,0.3)', boxShadow: '0 0 24px rgba(0,212,255,0.15)' }}>
-          <div className="flex items-center gap-2">
-            <img src={logo} alt="LogicPlay Logo" className="h-8 object-contain drop-shadow-[0_0_8px_rgba(0,212,255,0.5)]" />
-            <div>
-              <p className="text-sm font-bold text-white leading-none">Install LogicPlay</p>
-              <p className="text-[10px] text-slate-500 mt-0.5">Better offline experience</p>
-            </div>
-          </div>
-          <div className="flex gap-2 mt-1">
-            <button onClick={handleInstallClick} className="btn-primary flex-1 py-1.5 text-xs">Install</button>
-            <button onClick={() => setInstallPrompt(null)} className="btn-ghost flex-1 py-1.5 text-xs">Dismiss</button>
-          </div>
-        </div>
-      )}
+      <PWAStatus />
 
       <Routes>
-        <Route path="/" element={<Home />} />
+        <Route path="/" element={<Home isOffline={isOffline} />} />
         <Route path="/teacher-login" element={<TeacherLogin />} />
         <Route path="/playground" element={
           <ProtectedRoute><Playground /></ProtectedRoute>

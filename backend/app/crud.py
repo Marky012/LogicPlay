@@ -27,7 +27,13 @@ def get_all_users(db: Session):
     return db.query(models.User).filter(models.User.role == "student").all()
 
 def create_user(db: Session, user: schemas.UserCreate):
-    db_user = models.User(username=user.username, role="student")
+    hashed = get_password_hash(user.password) if hasattr(user, 'password') else None
+    db_user = models.User(
+        username=user.username, 
+        email=getattr(user, 'email', None), 
+        password_hash=hashed, 
+        role="student"
+    )
     db.add(db_user)
     db.commit()
     db.refresh(db_user)
@@ -46,20 +52,93 @@ def delete_user(db: Session, username: str):
 
 def create_teacher(db: Session, data: schemas.TeacherRegister):
     hashed = get_password_hash(data.password)
-    db_user = models.User(username=data.username, password_hash=hashed, role="teacher")
+    db_user = models.User(
+        username=data.username, 
+        email=getattr(data, 'email', None),
+        password_hash=hashed, 
+        role="teacher"
+    )
     db.add(db_user)
     db.commit()
     db.refresh(db_user)
     return db_user
 
-def authenticate_teacher(db: Session, username: str, password: str) -> Optional[models.User]:
-    user = db.query(models.User).filter(
-        models.User.username == username,
-        models.User.role == "teacher"
-    ).first()
+def authenticate_user(db: Session, username: str, password: str) -> Optional[models.User]:
+    user = db.query(models.User).filter(models.User.username == username).first()
     if user and user.password_hash and verify_password(password, user.password_hash):
         return user
     return None
+
+# Keep old one for compatibility if needed, but point to authenticate_user
+def authenticate_teacher(db: Session, username: str, password: str) -> Optional[models.User]:
+    user = authenticate_user(db, username, password)
+    if user and user.role == "teacher":
+        return user
+    return None
+
+def verify_device_token(db: Session, user_id: int, device_token: str) -> bool:
+    if not device_token:
+        return False
+    device = db.query(models.TrustedDevice).filter(
+        models.TrustedDevice.user_id == user_id,
+        models.TrustedDevice.device_token == device_token
+    ).first()
+    return device is not None
+
+def register_device_token(db: Session, user_id: int, device_token: str):
+    if not device_token:
+        return
+    try:
+        existing = db.query(models.TrustedDevice).filter(
+            models.TrustedDevice.user_id == user_id,
+            models.TrustedDevice.device_token == device_token
+        ).first()
+        if not existing:
+            db_device = models.TrustedDevice(user_id=user_id, device_token=device_token)
+            db.add(db_device)
+            db.commit()
+    except Exception as e:
+        db.rollback()
+        # Log but don't crash the main verification flow
+        print(f"⚠️ Device registration error: {e}")
+
+def create_verification_code(db: Session, user_id: int, code: str, expires_at: datetime):
+    # Cleanup any previous codes for this user to avoid confusion/collision
+    db.query(models.VerificationCode).filter(models.VerificationCode.user_id == user_id).delete()
+    db_code = models.VerificationCode(user_id=user_id, code=code, expires_at=expires_at)
+    db.add(db_code)
+    db.commit()
+
+def check_verification_code(db: Session, user_id: int, code: str) -> bool:
+    # Order by ID desc to ensure we check the most recent code first if cleanup failed
+    db_code = db.query(models.VerificationCode).filter(
+        models.VerificationCode.user_id == user_id,
+        models.VerificationCode.code == code,
+        models.VerificationCode.expires_at > datetime.utcnow()
+    ).order_by(models.VerificationCode.id.desc()).first()
+    
+    if db_code:
+        # One-time use code: delete after successful verification
+        db.delete(db_code)
+        db.commit()
+        return True
+    
+    # Debug: Check if a code exists but is expired or wrong
+    any_code = db.query(models.VerificationCode).filter(models.VerificationCode.user_id == user_id).first()
+    if any_code:
+        print(f"⚠️ Verification failed for user {user_id}. Provided: {code}, Found in DB: {any_code.code}, Expired: {any_code.expires_at < datetime.utcnow()}")
+    else:
+        print(f"⚠️ No verification code found in DB for user {user_id}")
+        
+    return False
+
+def update_user_password(db: Session, data: schemas.ChangePassword) -> bool:
+    user = get_user_by_username(db, data.username)
+    if user and user.password_hash and verify_password(data.old_password, user.password_hash):
+        user.password_hash = get_password_hash(data.new_password)
+        db.commit()
+        return True
+    return False
 
 
 # ─────────────────────────── Circuit ────────────────────────────
@@ -168,6 +247,21 @@ def update_classroom(db: Session, classroom_id: int, data: schemas.ClassroomUpda
         db_class.name = data.name
     if data.require_approval is not None:
         db_class.require_approval = data.require_approval
+    db.commit()
+    db.refresh(db_class)
+    return db_class
+
+def regenerate_classroom_join_code(db: Session, classroom_id: int):
+    db_class = db.query(models.Classroom).filter(models.Classroom.id == classroom_id).first()
+    if not db_class:
+        return None
+    
+    # Ensure unique join code
+    code = generate_join_code()
+    while db.query(models.Classroom).filter(models.Classroom.join_code == code).first():
+        code = generate_join_code()
+    
+    db_class.join_code = code
     db.commit()
     db.refresh(db_class)
     return db_class
@@ -298,3 +392,36 @@ def grade_submission(db: Session, submission_id: int, data: schemas.SubmissionGr
     db.commit()
     db.refresh(db_sub)
     return db_sub
+
+def get_submission(db: Session, submission_id: int):
+    return db.query(models.Submission).filter(models.Submission.id == submission_id).first()
+
+def delete_submission(db: Session, submission_id: int):
+    db_sub = db.query(models.Submission).filter(models.Submission.id == submission_id).first()
+    if db_sub:
+        db.delete(db_sub)
+        db.commit()
+        return True
+    return False
+
+def dismiss_assignment(db: Session, user_id: int, assignment_id: int):
+    # Check if already dismissed
+    exists = db.query(models.DismissedAssignment).filter(
+        models.DismissedAssignment.user_id == user_id,
+        models.DismissedAssignment.assignment_id == assignment_id
+    ).first()
+    if exists:
+        return exists
+    
+    db_dismiss = models.DismissedAssignment(user_id=user_id, assignment_id=assignment_id)
+    db.add(db_dismiss)
+    db.commit()
+    db.refresh(db_dismiss)
+    return db_dismiss
+
+def reset_dismissed_assignments(db: Session, user_id: int):
+    db.query(models.DismissedAssignment).filter(
+        models.DismissedAssignment.user_id == user_id
+    ).delete()
+    db.commit()
+    return True

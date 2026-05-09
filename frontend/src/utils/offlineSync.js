@@ -12,14 +12,28 @@ export const initDB = async () => {
             if (!db.objectStoreNames.contains('sync_queue')) {
                 db.createObjectStore('sync_queue', { keyPath: 'id', autoIncrement: true });
             }
+            if (!db.objectStoreNames.contains('user_profile')) {
+                db.createObjectStore('user_profile', { keyPath: 'username' });
+            }
         },
     });
+};
+
+export const saveUserProfile = async (profile) => {
+    const db = await initDB();
+    return db.put('user_profile', profile);
+};
+
+export const getCachedUser = async (username) => {
+    const db = await initDB();
+    return db.get('user_profile', username);
 };
 
 export const saveCircuitOffline = async (circuitData) => {
     const db = await initDB();
     return db.add(STORE_NAME, {
         ...circuitData,
+        is_offline_only: true, // Marker for UI
         saved_at: new Date().toISOString()
     });
 };
@@ -27,6 +41,11 @@ export const saveCircuitOffline = async (circuitData) => {
 export const getOfflineCircuits = async () => {
     const db = await initDB();
     return db.getAll(STORE_NAME);
+};
+
+export const deleteOfflineCircuit = async (id) => {
+    const db = await initDB();
+    return db.delete(STORE_NAME, id);
 };
 
 export const addToSyncQueue = async (request) => {

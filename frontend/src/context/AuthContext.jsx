@@ -8,8 +8,8 @@ export const AuthProvider = ({ children }) => {
 
   useEffect(() => {
     const storedUsername = localStorage.getItem('username');
-    const storedRole     = localStorage.getItem('role') || 'student';
-    const storedId       = localStorage.getItem('userId');
+    const storedRole = localStorage.getItem('role') || 'student';
+    const storedId = localStorage.getItem('userId');
     if (storedUsername) {
       setUser({
         username: storedUsername,
@@ -20,33 +20,37 @@ export const AuthProvider = ({ children }) => {
     setLoading(false);
   }, []);
 
-  // Student login (username only)
-  const login = (username) => {
-    localStorage.setItem('username', username);
-    localStorage.setItem('role', 'student');
-    localStorage.removeItem('userId');
-    setUser({ username, role: 'student', id: null });
-  };
+  // Ensure device token exists
+  useEffect(() => {
+    let token = localStorage.getItem('deviceToken');
+    if (!token) {
+      token = crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substring(2);
+      localStorage.setItem('deviceToken', token);
+    }
+  }, []);
 
-  // Teacher login (username + id from server response)
-  const loginTeacher = (username, id) => {
+  const getDeviceToken = () => localStorage.getItem('deviceToken');
+
+  // Unified login
+  const loginUnified = (username, role, id) => {
     localStorage.setItem('username', username);
-    localStorage.setItem('role', 'teacher');
-    localStorage.setItem('userId', String(id));
-    setUser({ username, role: 'teacher', id });
+    localStorage.setItem('role', role);
+    if (id) localStorage.setItem('userId', String(id));
+    setUser({ username, role, id });
   };
 
   const logout = () => {
     localStorage.removeItem('username');
     localStorage.removeItem('role');
     localStorage.removeItem('userId');
+    //Intentionally keep the deviceToken to recognize the device for future logins
     setUser(null);
   };
 
   const isTeacher = user?.role === 'teacher';
 
   return (
-    <AuthContext.Provider value={{ user, login, loginTeacher, logout, loading, isTeacher }}>
+    <AuthContext.Provider value={{ user, loginUnified, getDeviceToken, logout, loading, isTeacher }}>
       {children}
     </AuthContext.Provider>
   );

@@ -54,6 +54,7 @@ const Canvas = ({ gates, setGates, wires, setWires, onGateStateToggle, activeWir
   const [showOutputToOutputModal, setShowOutputToOutputModal] = useState(false);
   const [showInputToInputModal, setShowInputToInputModal] = useState(false);
   const [showInputLimitModal, setShowInputLimitModal] = useState(false);
+  const [showInputAlreadyConnectedModal, setShowInputAlreadyConnectedModal] = useState(false);
   const panStartRef = useRef({ x: 0, y: 0 });
 
   // Keep live refs so event handlers always read current values (avoids stale closures)
@@ -315,6 +316,15 @@ const Canvas = ({ gates, setGates, wires, setWires, onGateStateToggle, activeWir
         triggerFeedback('delete');
         setWires(prev => prev.filter(w => w.id !== existingWire.id));
       } else {
+        // Prevent multiple outputs connecting to the same input pin
+        const inputAlreadyConnected = wires.find(w => w.toGateId === toPin.gateId && w.toPin === toPin.pinId);
+        if (inputAlreadyConnected) {
+          triggerFeedback('error');
+          setShowInputAlreadyConnectedModal(true);
+          setDrawingWire(null);
+          return;
+        }
+
         triggerFeedback('connect');
         setWires(prev => [...prev, {
           id: `wire_${Date.now()}`,
@@ -380,7 +390,7 @@ const Canvas = ({ gates, setGates, wires, setWires, onGateStateToggle, activeWir
       onMouseUp={handleMouseUp}
       onMouseLeave={handleMouseUp}
       style={{
-        minHeight: '600px',
+        minHeight: window.innerWidth < 1024 ? '300px' : '500px',
         backgroundPosition: `${pan.x}px ${pan.y}px, ${pan.x}px ${pan.y}px, ${pan.x}px ${pan.y}px`,
         backgroundSize: `${112 * scale}px ${112 * scale}px, ${112 * scale}px ${112 * scale}px, ${28 * scale}px ${28 * scale}px`,
         border: drawingWire ? '2px solid var(--neon-blue)' : '2px solid var(--c-border)',
@@ -530,6 +540,18 @@ const Canvas = ({ gates, setGates, wires, setWires, onGateStateToggle, activeWir
         hideCancel
         onConfirm={() => setShowInputLimitModal(false)}
         onCancel={() => setShowInputLimitModal(false)}
+      />
+
+      {/* Input Already Connected Modal */}
+      <ConfirmModal
+        isOpen={showInputAlreadyConnectedModal}
+        title="Input Already Connected"
+        message="An input pin can only be connected to one output. To change the connection, first delete the existing wire."
+        confirmLabel="Got it"
+        hideCancel
+        danger={false}
+        onConfirm={() => { triggerFeedback('click'); setShowInputAlreadyConnectedModal(false); }}
+        onCancel={() => { triggerFeedback('click'); setShowInputAlreadyConnectedModal(false); }}
       />
     </div>
   );

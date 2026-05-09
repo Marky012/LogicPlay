@@ -1,13 +1,8 @@
 import axios from 'axios';
 
-// Use window.location.hostname so that if you connect via a mobile device (e.g. 192.168.1.x),
-// the frontend will try to hit the backend on that same exact IP instead of resolving back to the phone's 'localhost'
-const backendUrl = window.location.hostname === 'localhost' 
-  ? 'http://localhost:8000' 
-  : `http://${window.location.hostname}:8000`;
-
+// Use relative path so Vite proxy (or production server) can route it to the backend
 const api = axios.create({
-  baseURL: backendUrl,
+  baseURL: '/api',
   headers: {
     'Content-Type': 'application/json',
   },
@@ -15,14 +10,26 @@ const api = axios.create({
 
 // ─── Student Auth ────────────────────────────────────────────────
 
-export const register = async (username) => {
-  const response = await api.post('/users/', { username });
-  return response.data;
+export const register = async (username, email, password) => {
+  const response = await api.post('/users/', { username, email, password });
+  const data = response.data;
+  // Cache profile on register
+  await saveUserProfile(data);
+  return data;
 };
 
 export const getUser = async (username) => {
-  const response = await api.get(`/users/${username}`);
-  return response.data;
+  try {
+    const response = await api.get(`/users/${username}`);
+    const data = response.data;
+    // Update offline manual sync cache
+    await saveUserProfile(data);
+    return data;
+  } catch (error) {
+    const cached = await getCachedUser(username);
+    if (cached) return cached;
+    throw error;
+  }
 };
 
 export const deleteUser = async (username) => {
@@ -42,40 +49,73 @@ export const getLeaderboard = async (limit = 20) => {
 
 // ─── Teacher Auth ────────────────────────────────────────────────
 
-export const teacherRegister = async (username, password) => {
-  const response = await api.post('/auth/teacher/register', { username, password });
+export const teacherRegister = async (username, email, password) => {
+  const response = await api.post('/auth/teacher/register', { username, email, password });
   return response.data;
 };
 
-export const teacherLogin = async (username, password) => {
-  const response = await api.post('/auth/teacher/login', { username, password });
+export const teacherLogin = async (username, password, device_token) => {
+  const response = await api.post('/auth/teacher/login', { username, password, device_token });
+  return response.data;
+};
+
+// ─── Unified Auth (New) ──────────────────────────────────────────
+
+export const unifiedLogin = async (username, password, device_token) => {
+  const response = await api.post('/auth/login', { username, password, device_token });
+  return response.data;
+};
+
+export const verifyDevice = async (username, code, device_token) => {
+  const response = await api.post('/auth/verify', { username, code, device_token });
+  return response.data;
+};
+
+export const changePassword = async (username, old_password, new_password) => {
+  const response = await api.put('/auth/change-password', { username, old_password, new_password });
   return response.data;
 };
 
 // ─── Circuits ────────────────────────────────────────────────────
 
-import { saveCircuitOffline } from './offlineSync';
+import { saveCircuitOffline, getOfflineCircuits, getCachedUser, saveUserProfile } from './offlineSync';
 
 export const saveCircuit = async (circuitData, userId) => {
   if (!navigator.onLine) {
-     await saveCircuitOffline(circuitData);
-     return { ...circuitData, message: "Saved offline. Will sync when connected." };
+    await saveCircuitOffline(circuitData);
+    return { ...circuitData, message: "Saved offline. Will sync when connected." };
   }
-  
+
   try {
-     const response = await api.post(`/circuits/?user_id=${userId}`, circuitData);
-     return response.data;
+    const response = await api.post(`/circuits/?user_id=${userId}`, circuitData);
+    return response.data;
   } catch (error) {
-     if (error.message === 'Network Error') {
-        await saveCircuitOffline(circuitData);
-        return { ...circuitData, message: "Network error. Saved offline. Will sync when connected." };
-     }
-     throw error;
+    if (error.message === 'Network Error' || error.code === 'ERR_NETWORK' || !error.response) {
+      await saveCircuitOffline(circuitData);
+      return { ...circuitData, message: "Network error. Saved offline. Will sync when connected." };
+    }
+    throw error;
   }
 };
 
 export const getCircuits = async (username) => {
-  const response = await api.get(`/users/${username}/circuits`);
+  const localCircuits = await getOfflineCircuits();
+
+  try {
+    const response = await api.get(`/users/${username}/circuits`);
+    const remoteCircuits = response.data;
+
+    // Combine remote with local-only (unsynced) circuits
+    // Note: This is an additive merge for visibility.
+    return [...remoteCircuits, ...localCircuits];
+  } catch (error) {
+    // If offline and workbox cache also fails, fallback gracefully to returning local-only circuits
+    return localCircuits;
+  }
+};
+
+export const syncCircuitToCloud = async (circuit, userId) => {
+  const response = await api.post(`/circuits/?user_id=${userId}`, circuit);
   return response.data;
 };
 
@@ -161,11 +201,26 @@ export const approveStudent = async (classroomId, studentUsername) => {
   return response.data;
 };
 
+export const regenerateJoinCode = async (classroomId) => {
+  const response = await api.post(`/classrooms/${classroomId}/regenerate-code`);
+  return response.data;
+};
+
 // ─── Assignments ──────────────────────────────────────────────────
 
 export const getAssignments = async (studentUsername) => {
   const url = studentUsername ? `/assignments/student/${encodeURIComponent(studentUsername)}` : '/assignments/';
   const response = await api.get(url);
+  return response.data;
+};
+
+export const dismissAssignment = async (assignmentId, studentUsername) => {
+  const response = await api.post(`/assignments/${assignmentId}/dismiss?username=${encodeURIComponent(studentUsername)}`);
+  return response.data;
+};
+
+export const resetDismissedAssignments = async (studentUsername) => {
+  const response = await api.delete(`/assignments/dismissed/reset?username=${encodeURIComponent(studentUsername)}`);
   return response.data;
 };
 
@@ -212,6 +267,11 @@ export const getSubmissionsByAssignment = async (assignmentId) => {
 
 export const getSubmissionsByStudent = async (username) => {
   const response = await api.get(`/submissions/student/${username}`);
+  return response.data;
+};
+
+export const deleteSubmission = async (id, username) => {
+  const response = await api.delete(`/submissions/${id}?username=${encodeURIComponent(username)}`);
   return response.data;
 };
 

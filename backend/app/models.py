@@ -8,7 +8,8 @@ class User(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     username = Column(String, unique=True, index=True)
-    password_hash = Column(String, nullable=True)          # Only set for teachers
+    email = Column(String, unique=True, index=True, nullable=True)
+    password_hash = Column(String, nullable=True)
     role = Column(String, default="student")               # "student" | "teacher"
     points = Column(Integer, default=0)
     level = Column(Integer, default=1)
@@ -20,6 +21,32 @@ class User(Base):
     submissions = relationship("Submission", back_populates="student", cascade="all, delete-orphan")
     classrooms_taught = relationship("Classroom", back_populates="teacher", cascade="all, delete-orphan")
     enrollments = relationship("Enrollment", back_populates="student", cascade="all, delete-orphan")
+    trusted_devices = relationship("TrustedDevice", back_populates="user", cascade="all, delete-orphan")
+    verification_codes = relationship("VerificationCode", back_populates="user", cascade="all, delete-orphan")
+
+class TrustedDevice(Base):
+    __tablename__ = "trusted_devices"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"))
+    device_token = Column(String, index=True) # Removed unique=True to allow shared devices
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    user = relationship("User", back_populates="trusted_devices")
+
+    # Ensure a user doesn't have duplicate entries for the same device
+    from sqlalchemy import UniqueConstraint
+    __table_args__ = (UniqueConstraint('user_id', 'device_token', name='_user_device_uc'),)
+
+class VerificationCode(Base):
+    __tablename__ = "verification_codes"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"))
+    code = Column(String, index=True)
+    expires_at = Column(DateTime, nullable=False)
+
+    user = relationship("User", back_populates="verification_codes")
 
 
 class Circuit(Base):
@@ -76,7 +103,7 @@ class Enrollment(Base):
     __tablename__ = "enrollments"
 
     id = Column(Integer, primary_key=True, index=True)
-    classroom_id = Column(Integer, ForeignKey("classrooms.id"))
+    classroom_id = Column(Integer, ForeignKey("classrooms.id", ondelete="CASCADE"))
     student_id = Column(Integer, ForeignKey("users.id"))
     status = Column(String, default="approved") # "pending" | "approved"
     joined_at = Column(DateTime, default=datetime.utcnow)
@@ -91,7 +118,7 @@ class Assignment(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     teacher_id = Column(Integer, ForeignKey("users.id"))
-    classroom_id = Column(Integer, ForeignKey("classrooms.id"), nullable=True)
+    classroom_id = Column(Integer, ForeignKey("classrooms.id", ondelete="CASCADE"), nullable=True)
     title = Column(String, nullable=False)
     description = Column(String, nullable=True)
     target_gate = Column(String, nullable=True)       # Hint: AND, OR, XOR, …
@@ -122,3 +149,14 @@ class Submission(Base):
 
     assignment = relationship("Assignment", back_populates="submissions")
     student = relationship("User", back_populates="submissions")
+
+class DismissedAssignment(Base):
+    __tablename__ = "dismissed_assignments"
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    assignment_id = Column(Integer, ForeignKey("assignments.id", ondelete="CASCADE"), nullable=False)
+
+    user = relationship("User", back_populates="dismissed_assignments")
+    assignment = relationship("Assignment")
+
+User.dismissed_assignments = relationship("DismissedAssignment", back_populates="user", cascade="all, delete-orphan")

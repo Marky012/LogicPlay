@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { getChallenges } from '../utils/api';
+import { triggerFeedback } from '../utils/feedback';
+import { useTheme } from '../context/ThemeContext';
 
 const DIFFICULTY = {
-  1: { label: 'Beginner',     color: '#39ff14', stars: 1 },
-  2: { label: 'Intermediate', color: '#00d4ff', stars: 2 },
-  3: { label: 'Advanced',     color: '#bf5fff', stars: 3 },
-  4: { label: 'Expert',       color: '#f59e0b', stars: 4 },
+  1: { label: 'Beginner',     colorDark: '#39ff14', colorLight: '#15803d', stars: 1 },
+  2: { label: 'Intermediate', colorDark: '#00d4ff', colorLight: '#0369a1', stars: 2 },
+  3: { label: 'Advanced',     colorDark: '#bf5fff', colorLight: '#7c3aed', stars: 3 },
+  4: { label: 'Expert',       colorDark: '#f59e0b', colorLight: '#b45309', stars: 4 },
 };
 
 const getDifficulty = (points) => {
@@ -14,6 +16,7 @@ const getDifficulty = (points) => {
   if (points <= 100) return DIFFICULTY[3];
   return DIFFICULTY[4];
 };
+
 
 const Stars = ({ count, color }) => (
   <div className="flex gap-0.5">
@@ -30,6 +33,7 @@ const ChallengeList = ({ onSelectChallenge, selectedChallengeId }) => {
   const [loading, setLoading]       = useState(true);
   const [filter, setFilter]         = useState('All');
   const [expanded, setExpanded]     = useState(null);
+  const { isLight: isLightMode } = useTheme();
 
   useEffect(() => {
     getChallenges()
@@ -68,7 +72,10 @@ const ChallengeList = ({ onSelectChallenge, selectedChallengeId }) => {
       <div className="flex flex-wrap gap-1">
         {FILTERS.map(f => (
           <button key={f}
-                  onClick={() => setFilter(f)}
+                  onClick={() => {
+                    triggerFeedback(f === 'All' ? 'global' : 'click');
+                    setFilter(f);
+                  }}
                   className="text-[10px] font-semibold px-2.5 py-1 rounded-full transition-all duration-150"
                   style={{
                     background: filter === f ? 'color-mix(in srgb, var(--neon-blue), transparent 85%)' : 'var(--c-surface-2)',
@@ -87,6 +94,7 @@ const ChallengeList = ({ onSelectChallenge, selectedChallengeId }) => {
         ) : (
           filtered.map(c => {
             const diff = getDifficulty(c.points_reward);
+            const dc = isLightMode ? diff.colorLight : diff.colorDark;
             const isSelected = selectedChallengeId === c.id;
             const isExpanded = expanded === c.id;
 
@@ -109,9 +117,9 @@ const ChallengeList = ({ onSelectChallenge, selectedChallengeId }) => {
                       <h3 className="text-xs font-bold truncate" style={{ color: 'var(--c-text)' }}>{c.title}</h3>
                     </div>
                     <div className="flex items-center gap-2">
-                      <Stars count={diff.stars} color={diff.color} />
+                      <Stars count={diff.stars} color={dc} />
                       <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full"
-                            style={{ background: `${diff.color}18`, color: diff.color }}>
+                            style={{ background: `${dc}20`, color: dc }}>
                         +{c.points_reward} XP
                       </span>
                     </div>
@@ -124,11 +132,11 @@ const ChallengeList = ({ onSelectChallenge, selectedChallengeId }) => {
                 {/* Expanded detail */}
                 {isExpanded && (
                   <div className="px-2.5 pb-2.5 animate-slide-up">
-                    <div className="h-px mb-2" style={{ background: 'rgba(0,212,255,0.1)' }} />
+                    <div className="h-px mb-2" style={{ background: 'var(--c-border-dim)' }} />
                     <p className="text-[11px] leading-relaxed" style={{ color: 'var(--c-text-muted)' }}>{c.description}</p>
                     <div className="mt-2 flex items-center gap-1">
                       <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full"
-                            style={{ background: `${diff.color}15`, color: diff.color, border: `1px solid ${diff.color}30` }}>
+                            style={{ background: `${dc}18`, color: dc, border: `1px solid ${dc}35` }}>
                         {diff.label}
                       </span>
                     </div>
