@@ -34,8 +34,8 @@ yarn-error.log*
 *.pdf
 
 # ----- Private / generated data -----
-*.db               # SQLite databases
+*.db
 user_dump.json
 users.txt
-tmp/              
-brain/               
+tmp/
+brain/
