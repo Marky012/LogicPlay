@@ -77,7 +77,7 @@ It works entirely in the browser (desktop & mobile) thanks to its **Progressive 
   <img src="screenshots/builder.gif" alt="Circuit Builder Demo" width="600"/>
   <br/><br/>
   <em>Gamification dashboard</em><br/>
-  <img src="screenshots/dashboard.png" alt="Gamification Dashboard" width="600"/>
+  <img src="images/dashboard/dashboard.png" alt="Gamification Dashboard" width="600"/>
 </p>
 
 > **Live demo:** [logicplay-demo.vercel.app](https://logicplay-demo.vercel.app) (temporary link – replace with your actual deployment)
