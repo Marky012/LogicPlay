@@ -28,6 +28,14 @@ yarn-error.log*
 *.docx
 *.txt
 *.md
+!README.md
 *.csv
 *.doc
 *.pdf
+
+# ----- Private / generated data -----
+*.db               # SQLite databases
+user_dump.json
+users.txt
+tmp/               # Temporary scripts / generated files
+brain/               # Antigravity assistant state folder
