@@ -17,8 +17,12 @@ export default defineConfig({
         name: 'LogicPlay - Digital Logic Gamified',
         short_name: 'LogicPlay',
         description: 'Gamified platform for learning digital logic with interactive circuits',
+        id: '/',
         start_url: '/',
         display: 'standalone',
+        orientation: 'any',
+        dir: 'ltr',
+        lang: 'en-US',
         background_color: '#0f172a',
         theme_color: '#00d4ff',
         icons: [

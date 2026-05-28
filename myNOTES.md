@@ -14,6 +14,7 @@ QUICK START / DEBUGGING GUIDE
    - npm run test:offline
    - (Served on http://localhost:4173)
 
+Running offline test:
 3. MOBILE TUNNEL (For Phone/External Testing)
    - npx ngrok http 4173
    - (Open the secure https://...ngrok-free.dev link on your phone)
@@ -48,47 +49,13 @@ DM95AJ
 
 Essentials:
 
-/ running mobile live view
 - how do we confirm or validate a teacher account?
-- Preview of the saved circuit
+- Preview of the saved circuit 
 - Preview of circuit in the submission review modal
 - teachers can precreate assignments for the class and can do assignment on a later date or time
-
-D:\LogicPlay\frontend>npm run dev   
-
-> logicplay-frontend@1.0.0 dev
-> vite
-
-
-  VITE v7.3.1  ready in 1160 ms
-
-  ➜  Local:   http://localhost:5173/
-  ➜  Network: use --host to expose
-  ➜  press h + enter to show help
-12:25:51 PM [vite] (client) hmr update /src/pages/Home.jsx, /src/index.css
-
-PWA v1.2.0
-mode      generateSW
-precache  1 entries (0.00 KiB)
-files generated
-  dev-dist/sw.js
-  dev-dist/workbox-5a5d9309.js
-warnings
-  One of the glob patterns doesn't match any files. Please remove or fix the following: {
-  "globDirectory": "D:/LogicPlay/frontend/dev-dist",
-  "globPattern": "**/*.{js,wasm,css,html}",
-  "globIgnores": [
-    "**/node_modules/**/*",
-    "sw.js",
-    "workbox-*.js"
-  ]
-}
-
-12:26:09 PM [vite] (client) hmr update /src/pages/TeacherLogin.jsx, /src/index.css
-
-
-
-
+- light mode UI fix (everything is too bright)
+- I/O gates labeling 
+- 
 
 ======================================
 
@@ -97,25 +64,31 @@ Update features:
 - a report generating feature for student to have a soft copy of its work, and then with the logical gate made by the player also the truth table, and timestamp(the date it is generated, name,)
 - sprite(for a helper/hint-giving character in the game - humanoid, can be customized for gender, or can be a robot, this sprite will be available always via a button in the settings) 
 
-- Edit username and password for teacher account, also for student account
+- Edit username for teacher account, also for student account
 - First open, tutorial for both teacher and student for the playground - and this ttorial will be available always via a button in the settings
-- email for account creation and password reset for both teacher and student account
-- 
+- notification badge in class when there is an assingment assigned
+- password validation (for both teacher and student), to ensure no weak passwords allowed
+- change email
+- additional expression input in activity/assignment
+
 
 ======================================
 
 Error:
 
-- 
+- MVP (non so far)
 
 
 ======================================
 
 Bug:
 
--  SMTP code in terminal not recieved in actual gmail
-
-
+- MVP (non so far)
+- can duplicate class create(with the same name)
+- Test Case - List of enrolled students with join dates (no date appearing for teacher when student actually joined the class)
+- Test Case - when teacher clicks "View Submission" (for student's assignment) in assignment list - no modal appear
+- truth table is not scrollable(stucked-up), stock up (wires not connected, maybe having fixed right sidebar)
+- 
 
 
 ======================================
@@ -137,14 +110,14 @@ Mobile/Tablet (< 768px): Components are stacked, and the navigation/sidebars are
 Medium (768px to 1023px): Sidebars appear in the Dashboard, but the Playground still uses the mobile-optimized toolbar.
 Desktop (≥ 1024px): Full "Cyber-Neon" layout with side-by-side toolbars, canvas, and property panels.
 
+- not Integration of ML model, created one 
+- 
+
 ======================================
 
 Questions:
 
 - how to confirm teacher account?
-- how does that new security feature works again?
-- How does it work that the circuit is only viewable to the student whose account is logged in (assignments/saved circuit in dashboard)
-- 
 
 
 ==================================================================

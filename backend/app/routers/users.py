@@ -15,6 +15,12 @@ def create_user(user: schemas.UserCreate, db: Session = Depends(get_db)):
     db_user = crud.get_user_by_username(db, username=user.username)
     if db_user:
         raise HTTPException(status_code=400, detail="Username already registered")
+    
+    if user.email:
+        db_email = crud.get_user_by_email(db, email=user.email)
+        if db_email:
+            raise HTTPException(status_code=400, detail="Email already registered")
+            
     return crud.create_user(db=db, user=user)
 
 @router.get("/all", response_model=List[schemas.User])

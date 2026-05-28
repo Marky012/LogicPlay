@@ -929,11 +929,11 @@ function LoginSection({ loginRef }) {
       }
     } catch (err) {
       if (err.response?.status === 400 && isRegistering) {
-        setError('Username already registered.');
+        setError(err.response?.data?.detail || 'Registration failed.');
       } else if (err.response?.status === 401) {
         setError('Invalid username or password.');
       } else { 
-        setError('Connection error – is the backend running?'); 
+        setError(err.response?.data?.detail || 'Connection error – is the backend running?'); 
       }
     } finally { setLoading(false); }
   };

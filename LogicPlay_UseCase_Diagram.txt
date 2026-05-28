@@ -1,0 +1,259 @@
+LOGICPLAY SYSTEM - USE CASE DIAGRAM SPECIFICATIONS
+==================================================
+This file contains the correct and accurate Use Case Diagram specifications for the LogicPlay platform.
+It includes three formats:
+1. PlantUML (Standard UML Diagram syntax)
+2. Mermaid.js (Standard Markdown/Web Diagram syntax)
+3. Plain Text structured description (For general use or AI prompt input)
+
+You can copy and paste the respective syntax blocks into any online rendering tool (e.g., plantuml.com, mermaid.live, Draw.io, Eraser.io, or ChatGPT/Claude).
+
+--------------------------------------------------
+FORMAT 1: PLANTUML
+--------------------------------------------------
+Copy from @startuml to @enduml below:
+
+@startuml
+left to right direction
+skinparam packageStyle rectangle
+skinparam roundcorner 10
+skinparam actorStyle stickman
+
+actor Student as student
+actor Teacher as teacher
+rectangle "Autograding System\n(ML Model & Heuristic)" as autograder
+
+rectangle "LogicPlay System" {
+    
+    '--- Category: Authentication & Profile ---
+    usecase "Register Account" as UC_Register
+    usecase "Login / Authenticate" as UC_Login
+    usecase "Verify Device (MFA)" as UC_MFA
+    usecase "Change Password / Edit Profile" as UC_Profile
+    
+    '--- Category: Classroom Management ---
+    usecase "Join Classroom (via Join Code)" as UC_JoinClass
+    usecase "Create Classroom" as UC_CreateClass
+    usecase "Manage Classroom Details\n(Rename, Regenerate Code, Delete)" as UC_ManageClass
+    usecase "Approve Student Enrollments" as UC_ApproveEnroll
+    usecase "Remove Student from Class" as UC_RemoveStudent
+    usecase "View Classroom Analytics / Dashboard" as UC_ViewAnalytics
+    
+    '--- Category: Circuit Design & Simulation ---
+    usecase "Design Logic Circuit (Canvas)" as UC_DesignCircuit
+    usecase "Simulate Circuit Logic (Real-time)" as UC_Simulate
+    usecase "Save / Load Circuit" as UC_SaveCircuit
+    usecase "Offline Save & Sync" as UC_OfflineSync
+    usecase "Generate Circuit Report\n(PDF/Soft Copy)" as UC_GenReport
+    
+    '--- Category: Assignments & Submissions ---
+    usecase "View Active Assignments" as UC_ViewAssign
+    usecase "Submit Circuit for Assignment" as UC_Submit
+    usecase "Dismiss / Reset Assignments" as UC_DismissAssign
+    usecase "Create Assignment\n(Target Gate, Due Date, Points)" as UC_CreateAssign
+    usecase "Edit / Delete Assignment" as UC_EditAssign
+    usecase "View Submissions List" as UC_ViewSubmissions
+    
+    '--- Category: Evaluation & Grading ---
+    usecase "Auto-Score Circuit Submission" as UC_AutoScore
+    usecase "Grade & Feedback Submission Manually" as UC_GradeSub
+    
+    '--- Category: Gamification & Progression ---
+    usecase "View Leaderboard" as UC_ViewLeaderboard
+    usecase "Track XP, Level, & Badges" as UC_TrackProgress
+    usecase "View Challenges" as UC_ViewChallenges
+}
+
+'--- Student Relationships ---
+student --> UC_Register
+student --> UC_Login
+student --> UC_Profile
+student --> UC_JoinClass
+student --> UC_DesignCircuit
+student --> UC_Simulate
+student --> UC_SaveCircuit
+student --> UC_OfflineSync
+student --> UC_GenReport
+student --> UC_ViewAssign
+student --> UC_Submit
+student --> UC_DismissAssign
+student --> UC_ViewSubmissions
+student --> UC_ViewLeaderboard
+student --> UC_TrackProgress
+student --> UC_ViewChallenges
+
+'--- Teacher Relationships ---
+teacher --> UC_Register
+teacher --> UC_Login
+teacher --> UC_Profile
+teacher --> UC_CreateClass
+teacher --> UC_ManageClass
+teacher --> UC_ApproveEnroll
+teacher --> UC_RemoveStudent
+teacher --> UC_ViewAnalytics
+teacher --> UC_CreateAssign
+teacher --> UC_EditAssign
+teacher --> UC_ViewSubmissions
+teacher --> UC_GradeSub
+teacher --> UC_DesignCircuit
+teacher --> UC_Simulate
+teacher --> UC_SaveCircuit
+teacher --> UC_ViewLeaderboard
+
+'--- Include/Extend Relationships ---
+UC_Login ..> UC_MFA : <<extend>>\n(If Unrecognized Device)
+UC_Submit ..> UC_AutoScore : <<include>>
+
+'--- Secondary Actor Relationships ---
+UC_AutoScore --> autograder
+
+@enduml
+
+--------------------------------------------------
+FORMAT 2: MERMAID.JS
+--------------------------------------------------
+Copy from flowchart LR to the end of the block below:
+
+```mermaid
+flowchart LR
+    %% Actors
+    Student(((Student)))
+    Teacher(((Teacher)))
+    Autograder[[Autograding System]]
+
+    subgraph SystemBoundary ["LogicPlay System Boundary"]
+        %% Auth & Profile
+        UC_Register(["Register Account"])
+        UC_Login(["Login / Authenticate"])
+        UC_MFA(["Verify Device (MFA)"])
+        UC_Profile(["Change Password / Profile"])
+
+        %% Classroom Management
+        UC_JoinClass(["Join Classroom (via Join Code)"])
+        UC_CreateClass(["Create Classroom"])
+        UC_ManageClass(["Manage Classroom Details"])
+        UC_ApproveEnroll(["Approve Enrollments"])
+        UC_RemoveStudent(["Remove Student from Class"])
+        UC_ViewAnalytics(["View Classroom Analytics / Dashboard"])
+
+        %% Circuit Canvas
+        UC_DesignCircuit(["Design Logic Circuit (Canvas)"])
+        UC_Simulate(["Simulate Circuit Logic (Real-time)"])
+        UC_SaveCircuit(["Save / Load Circuit"])
+        UC_OfflineSync(["Offline Save & Sync"])
+        UC_GenReport(["Generate Circuit Report"])
+
+        %% Assignments & Submissions
+        UC_ViewAssign(["View Active Assignments"])
+        UC_Submit(["Submit Circuit for Assignment"])
+        UC_DismissAssign(["Dismiss / Reset Assignments"])
+        UC_CreateAssign(["Create Assignment"])
+        UC_EditAssign(["Edit / Delete Assignment"])
+        UC_ViewSubmissions(["View Submissions List"])
+
+        %% Grading & Evaluation
+        UC_AutoScore(["Auto-Score Circuit Submission"])
+        UC_GradeSub(["Grade & Feedback Submission Manually"])
+
+        %% Gamification
+        UC_ViewLeaderboard(["View Leaderboard"])
+        UC_TrackProgress(["Track XP, Level, & Badges"])
+        UC_ViewChallenges(["View Challenges"])
+    end
+
+    %% Student Links
+    Student ---> UC_Register
+    Student ---> UC_Login
+    Student ---> UC_Profile
+    Student ---> UC_JoinClass
+    Student ---> UC_DesignCircuit
+    Student ---> UC_Simulate
+    Student ---> UC_SaveCircuit
+    Student ---> UC_OfflineSync
+    Student ---> UC_GenReport
+    Student ---> UC_ViewAssign
+    Student ---> UC_Submit
+    Student ---> UC_DismissAssign
+    Student ---> UC_ViewSubmissions
+    Student ---> UC_ViewLeaderboard
+    Student ---> UC_TrackProgress
+    Student ---> UC_ViewChallenges
+
+    %% Teacher Links
+    Teacher ---> UC_Register
+    Teacher ---> UC_Login
+    Teacher ---> UC_Profile
+    Teacher ---> UC_CreateClass
+    Teacher ---> UC_ManageClass
+    Teacher ---> UC_ApproveEnroll
+    Teacher ---> UC_RemoveStudent
+    Teacher ---> UC_ViewAnalytics
+    Teacher ---> UC_CreateAssign
+    Teacher ---> UC_EditAssign
+    Teacher ---> UC_ViewSubmissions
+    Teacher ---> UC_GradeSub
+    Teacher ---> UC_DesignCircuit
+    Teacher ---> UC_Simulate
+    Teacher ---> UC_SaveCircuit
+    Teacher ---> UC_ViewLeaderboard
+
+    %% Interactions between Use Cases / Secondary Actors
+    UC_Login -.->|extends if unrecognized device| UC_MFA
+    UC_Submit -.->|includes| UC_AutoScore
+    UC_AutoScore ---> Autograder
+```
+
+--------------------------------------------------
+FORMAT 3: STRUCTURED PLAIN TEXT DESCRIPTION
+--------------------------------------------------
+This structure is ideal to paste directly into AI diagram makers (like Eraser.io, Draw.io, or ChatGPT/Claude) to instruct them on how to generate the diagram.
+
+**System Boundary:** LogicPlay System
+
+**Actors:**
+1. **Student** (Primary Actor - User who learns logic gate circuit design)
+2. **Teacher** (Primary Actor - User who manages classrooms, tasks, and grades)
+3. **Autograding System** (Secondary System Actor - Automates verification & scoring of circuits)
+
+**Use Cases by Actor:**
+
+*   **Student Use Cases:**
+    *   *Register Account*: Sign up to the system as a student.
+    *   *Login / Authenticate*: Authenticate username/password.
+        *   *Verify Device (MFA)*: (Optional extension) Enter 6-digit email verification code for unrecognized devices.
+    *   *Change Password / Edit Profile*: Update personal details and password.
+    *   *Join Classroom*: Enter a unique 6-character Join Code to enroll in a classroom.
+    *   *Design Logic Circuit*: Drag-and-drop gates (AND, OR, NOT, NAND, NOR, XOR, XNOR, inputs/outputs) on a panning/zooming canvas.
+    *   *Simulate Circuit Logic*: View real-time signal flows and binary pulse animations.
+    *   *Save / Load Circuit*: Save canvas state to the backend (or IndexedDB if offline).
+    *   *Offline Save & Sync*: Work offline and automatically synchronize saved circuits when connection is restored.
+    *   *Generate Circuit Report*: Export a PDF/soft copy report containing name, truth table, and circuit diagram.
+    *   *View Active Assignments*: View list of tasks assigned by teachers.
+    *   *Dismiss / Reset Assignments*: Hide tasks from view or restore hidden lists.
+    *   *Submit Circuit for Assignment*: Send completed circuits to assignments (triggers *Auto-Score*).
+    *   *View Submissions*: Check feedback, points, and grades of submitted work.
+    *   *View Leaderboard*: View list of top students by XP/Points.
+    *   *Track XP, Level, & Badges*: Monitor game progression and achievements.
+    *   *View Challenges*: View list of independent logic missions.
+
+*   **Teacher Use Cases:**
+    *   *Register Account*: Sign up as a teacher.
+    *   *Login / Authenticate*: Authenticate username/password.
+        *   *Verify Device (MFA)*: (Optional extension) Enter 6-digit email verification code for unrecognized devices.
+    *   *Change Password / Edit Profile*: Update personal details and password.
+    *   *Create Classroom*: Create a new classroom group and generate a unique join code (with optional Teacher Approval option).
+    *   *Manage Classroom Details*: Edit classroom name, regenerate join codes, or delete classrooms.
+    *   *Approve Student Enrollments*: Review and approve pending student enrollment requests.
+    *   *Remove Student from Class*: Deregister student from a classroom.
+    *   *View Classroom Analytics / Dashboard*: Track real-time dashboard of student lists and submission statistics.
+    *   *Create Assignment*: Define task title, description, target gate hints, deadlines, and rewards.
+    *   *Edit / Delete Assignment*: Update details or remove assignments.
+    *   *View Submissions List*: Review all students' work submitted for assignments.
+    *   *Grade & Feedback Submission Manually*: Input teacher score and comment feedback on student submissions.
+    *   *Design Logic Circuit / Simulate / Save*: Access the playground for demo purposes.
+    *   *View Leaderboard*: View general student rankings.
+
+*   **Use-Case Relationships:**
+    *   **Include:** "Submit Circuit for Assignment" *includes* "Auto-Score Circuit Submission".
+    *   **Extend:** "Login / Authenticate" *is extended by* "Verify Device (MFA)" if the device is unrecognized.
+    *   **Secondary Actor Association:** "Auto-Score Circuit Submission" connects to the "Autograding System".

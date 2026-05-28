@@ -52,9 +52,15 @@ def change_password(data: schemas.ChangePassword, db: Session = Depends(get_db))
 
 @router.post("/teacher/register", response_model=schemas.TeacherLoginResponse)
 def register_teacher(data: schemas.TeacherRegister, db: Session = Depends(get_db)):
-    existing = crud.get_user_by_username(db, data.username)
-    if existing:
+    existing_user = crud.get_user_by_username(db, data.username)
+    if existing_user:
         raise HTTPException(status_code=400, detail="Username already taken")
+    
+    if data.email:
+        existing_email = crud.get_user_by_email(db, data.email)
+        if existing_email:
+            raise HTTPException(status_code=400, detail="Email already registered")
+            
     teacher = crud.create_teacher(db, data)
     return schemas.TeacherLoginResponse(username=teacher.username, role=teacher.role, id=teacher.id)
 

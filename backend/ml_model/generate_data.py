@@ -36,7 +36,7 @@ def generate_random_circuit():
     wire_id = 0
     
     # Try to connect them up randomly (not necessarily logically correct)
-    # We just need structural features for the ML model to learn from
+    # Just need structural features for the ML model to learn from
     
     for gate in gates:
         if gate["type"] == "INPUT": continue
@@ -60,7 +60,7 @@ def generate_random_circuit():
             
     # Simple rule-based expected score to train the ML model on
     # A perfect circuit has fully connected paths from INPUT to OUTPUT
-    # For synthetic data, we'll just score based on connections vs gates
+    # For synthetic data, the score based on connections vs gates
     
     circuit_data = {"gates": gates, "wires": wires}
     

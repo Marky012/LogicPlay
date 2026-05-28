@@ -320,6 +320,19 @@ input, textarea, [contenteditable="true"] {
     background: rgba(0, 212, 255, 0.15);
   }
 
+  .btn-neon-amber {
+    @apply relative flex items-center justify-center gap-2 px-10 py-3.5 rounded-2xl font-black text-xs tracking-[0.2em] uppercase transition-all duration-300 hover:scale-105 active:scale-95;
+    background: rgba(245, 158, 11, 0.08);
+    border: 1.5px solid var(--neon-amber);
+    color: var(--neon-amber);
+    backdrop-filter: blur(10px);
+    box-shadow: 0 0 15px rgba(245, 158, 11, 0.1);
+  }
+  .btn-neon-amber:hover {
+    box-shadow: 0 0 30px var(--neon-amber);
+    background: rgba(245, 158, 11, 0.15);
+  }
+
   .btn-neon-purple {
     @apply relative flex items-center justify-center gap-2 px-10 py-3.5 rounded-2xl font-black text-xs tracking-[0.2em] uppercase transition-all duration-300 hover:scale-105 active:scale-95;
     background: rgba(191, 95, 255, 0.08);
@@ -352,6 +365,16 @@ input, textarea, [contenteditable="true"] {
   [data-theme="light"] .btn-neon-purple:hover {
     background: rgba(124, 58, 237, 0.12);
     box-shadow: 0 4px 24px rgba(124,58,237,0.25);
+  }
+  [data-theme="light"] .btn-neon-amber {
+    background: rgba(180, 83, 9, 0.07);
+    border: 1.5px solid rgba(180, 83, 9, 0.5);
+    color: #b45309;
+    box-shadow: 0 2px 16px rgba(180,83,9,0.15);
+  }
+  [data-theme="light"] .btn-neon-amber:hover {
+    background: rgba(180, 83, 9, 0.12);
+    box-shadow: 0 4px 24px rgba(180,83,9,0.25);
   }
   [data-theme="light"] .btn-neon-red {
     background: rgba(190, 18, 60, 0.06);
