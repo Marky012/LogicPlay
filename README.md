@@ -41,11 +41,11 @@
 - [<img src="images/icons/code-window.svg" fill="white" width="16" height="16" valign="middle"/> Tech Stack](#tech-stack)
 - [<img src="images/icons/time-fast.svg" fill="white" width="16" height="16" valign="middle"/> Quick Start](#quick-start)
 - [<img src="images/icons/overview.svg" fill="white" width="16" height="16" valign="middle"/> Detailed Setup](#detailed-setup)
-- [<img src="images/icons/urban-planning.svg" fill="white" width="16" height="16" valign="middle"/> Architecture](#architecture)
-- [<img src="images/icons/console-controller.svg" fill="white" width="16" height="16" valign="middle"/> Gamification System](#gamification-system)
-- [<img src="images/icons/road-map-pin.svg" fill="white" width="16" height="16" valign="middle"/> Roadmap](#roadmap)
+- [<img src="images/icons/urban-planning.svg" fill="white" width="16" height="16" valign="middle"/> Architecture](#tech-stack)
+- [<img src="images/icons/console-controller.svg" fill="white" width="16" height="16" valign="middle"/> Gamification System](#features)
+- [<img src="images/icons/road-map-pin.svg" fill="white" width="16" height="16" valign="middle"/> Roadmap](#features)
 - [<img src="images/icons/apps-add.svg" fill="white" width="16" height="16" valign="middle"/> Contributing](#contributing)
-- [<img src="images/icons/time-check.svg" fill="white" width="16" height="16" valign="middle"/> License](#license)
+
 
 ---
 
