@@ -37,5 +37,5 @@ yarn-error.log*
 *.db               # SQLite databases
 user_dump.json
 users.txt
-tmp/               # Temporary scripts / generated files
-brain/               # Antigravity assistant state folder
+tmp/              
+brain/               
