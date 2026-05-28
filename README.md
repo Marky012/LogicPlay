@@ -93,7 +93,7 @@ It works entirely in the browser (desktop & mobile) thanks to its **Progressive 
 - **Workbox** – service worker generation for PWA capabilities
 - **React DnD** / **dnd kit** – drag‑and‑drop interactions
 
-### <img src="images/icons/api-cloud.svg" fill="white" width="20" height="20" valign="middle"/> Backend
+### <img src="images/icons/database.svg" fill="white" width="20" height="20" valign="middle"/> Backend
 - **FastAPI** – high‑performance Python web framework
 - **SQLite** – zero‑config relational database
 - **scikit‑learn** – machine learning for intelligent auto‑grading
