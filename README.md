@@ -2,7 +2,7 @@
 <br />
 <div align="center">
   <a href="https://github.com/your-username/LogicPlay">
-    <img src="D:\LogicPlay\frontend\public\favicon.png" alt="Logo" width="120" height="120">
+    <img src="frontend\public\favicon.png" alt="Logo" width="120" height="120">
   </a>
 
   <h1 align="center">⚡ LogicPlay</h1>
@@ -22,7 +22,7 @@
   <!-- BADGES -->
   <p>
     <img src="https://img.shields.io/badge/version-1.0.0-blue.svg?style=flat-square" alt="Version">
-    <img src="https://img.shields.io/badge/license-MIT-green.svg?style=flat-square" alt="License">
+    <!-- <img src="https://img.shields.io/badge/license-MIT-green.svg?style=flat-square" alt="License"> -->
     <img src="https://img.shields.io/badge/PRs-welcome-brightgreen.svg?style=flat-square" alt="PRs Welcome">
     <img src="https://img.shields.io/badge/stack-React%20%7C%20FastAPI%20%7C%20Tailwind%20CSS-informational?style=flat-square" alt="Tech Stack">
     <img src="https://img.shields.io/badge/PWA-ready-blueviolet?style=flat-square&logo=pwa" alt="PWA Ready">
