@@ -222,17 +222,19 @@ const NavBar = ({ profileData }) => {
         message={
           <>
             <p>
-              {isTeacher 
+            {isTeacher 
                 ? "You'll be signed out of the instructor portal." 
-                : "You'll need to enter your username again to play."}
+                : "You'll need to enter your credentials again to play."}
             </p>
             {isOffline && (
-              <div className="mt-4 p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-600 dark:text-amber-500 text-[11px] font-medium leading-normal animate-pulse-glow text-left">
-                <div className="flex items-center gap-2 mb-1.5">
+              <div className="mt-4 p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-600 dark:text-amber-500 text-[11px] font-medium leading-normal animate-pulse-glow">
+                <div className="flex items-center justify-center gap-2 mb-1.5">
                   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" /><line x1="12" y1="9" x2="12" y2="13" /><line x1="12" y1="17" x2="12.01" y2="17" /></svg>
                   <span className="uppercase tracking-[0.1em] font-black text-[9px]">Offline Warning</span>
                 </div>
-                You may experience an interrupted login while offline. The game may require an internet connection to log back in successfully.
+                <p className="text-center opacity-90 px-1">
+                  You may experience an interrupted login while offline. The game may require an internet connection to log back in successfully.
+                </p>
               </div>
             )}
           </>

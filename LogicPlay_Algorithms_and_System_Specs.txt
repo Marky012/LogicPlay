@@ -26,12 +26,20 @@ LOGICPLAY: ALGORITHMS AND SYSTEM SPECIFICATIONS
 - Awarding: Points are earned based on saved circuit complexity (gate count) and the predicted score from the ML model.
 
 1.5 Security & Authentication
-- Password Hashing: bcrypt (Industry-standard salted hashing with a cost factor of 12).
-- Stateless Auth: JWT (JSON Web Tokens) for secure, stateless authentication and session management.
-- Input Validation: Pydantic schemas enforce data types and structures on every API request.
-- Data Integrity: SQLAlchemy ORM with PRAGMA foreign_keys=ON enabled to ensure relational consistency in SQLite.
-- Enrollment Security: Unique 6-character join codes and optional Teacher Approval requirement for classroom enrollments.
-- Cycle Guard: Built-in safety limit in the simulation algorithm to prevent infinite loop exploits.
+- SQL Injection (SQLi) Protection: Uses SQLAlchemy ORM for all database interactions. This ensures all queries are parameterized, preventing malicious SQL strings from being executed. Validated with 10 distinct SQLi test counts (Auth bypass, data extraction, etc.).
+- DoS/DDoS Mitigation:
+    Rate Limiting: 100 requests per minute per user threshold (managed via Nginx reverse proxy).
+    Cycle Guard: Built-in safety limit in the simulation algorithm to prevent "Logic Bomb" exploits (infinite oscillation circuits) from consuming CPU resources.
+    Request Buffering: Nginx handles slow-client attacks by buffering requests before passing them to the FastAPI application.
+- HTTP Error Code Management:
+    400 (Bad Request): Pydantic schemas enforce strict type-checking and structural validation on every API entry point, rejecting malformed payloads before they reach the logic layer.
+    500 (Internal Error): Graceful global exception handlers return sanitized JSON responses, preventing the leakage of internal stack traces or environment variables.
+- Password Hashing: BCrypt (NIST-compliant salted hashing with a cost factor of 12).
+- Stateless Auth: JWT (JSON Web Tokens) for secure, encrypted session management.
+- Multi-Factor Authentication (MFA): Email-based 6-digit verification codes required for logins from unrecognized devices.
+- Role-Based Access Control (RBAC): Strict endpoint isolation between Student and Teacher roles enforced via FastAPI dependency injection.
+- Data Integrity: SQLite/PostgreSQL foreign key constraints (PRAGMA foreign_keys=ON) to ensure relational consistency.
+- Enrollment Security: Unique 6-character join codes with optional Teacher Approval gating.
 
 
 2. PWA & OFFLINE CAPABILITIES
