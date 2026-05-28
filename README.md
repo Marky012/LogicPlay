@@ -66,7 +66,7 @@ It works entirely in the browser (desktop & mobile) thanks to its **Progressive 
 | <img src="images/icons/console-controller.svg" fill="white" width="18" height="18" valign="middle"/> **Gamification** | Earn **points** and **badges**, climb the global **leaderboard**, and unlock advanced topics |
 | <img src="images/icons/browser-ui.svg" fill="white" width="18" height="18" valign="middle"/> **PWA & Offline** | Install on any device, work without internet – service workers via **Workbox** |
 | <img src="images/icons/grid.svg" fill="white" width="18" height="18" valign="middle"/> **Modern UI** | Sleek, responsive interface built with **React + Tailwind CSS** |
-| <img src="images/icons/api-cloud.svg" fill="white" width="18" height="18" valign="middle"/> **REST API** | Fully documented **FastAPI** backend for user accounts, progress, and grading |
+| <img src="images\icons\database.svg" fill="white" width="18" height="18" valign="middle"/> **REST API** | Fully documented **FastAPI** backend for user accounts, progress, and grading |
 
 ---
 
