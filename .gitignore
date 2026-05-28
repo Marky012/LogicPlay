@@ -39,3 +39,4 @@ user_dump.json
 users.txt
 tmp/               # Temporary scripts / generated files
 brain/               # Antigravity assistant state folder
+
