@@ -49,6 +49,7 @@
 
 ---
 
+<a id="overview"></a>
 ## <img src="images/icons/bullseye-arrow.svg" fill="white" width="24" height="24" valign="middle"/> Overview
 **LogicPlay** transforms the way students and enthusiasts learn digital logic design. By combining a **drag‑and‑drop circuit builder**, **real‑time signal flow animation**, **instant ML‑powered grading**, and a full **gamification engine**, LogicPlay makes mastering gates, flip‑flops, and combinational/sequential circuits engaging, fun, and effective.
 
@@ -56,6 +57,7 @@ It works entirely in the browser (desktop & mobile) thanks to its **Progressive 
 
 ---
 
+<a id="features"></a>
 ## <img src="images/icons/features.svg" fill="white" width="24" height="24" valign="middle"/> Features
 
 | Category | Highlights |
@@ -70,6 +72,7 @@ It works entirely in the browser (desktop & mobile) thanks to its **Progressive 
 
 ---
 
+<a id="demo--screenshots"></a>
 ## <img src="images/icons/photo-capture.svg" fill="white" width="24" height="24" valign="middle"/> Demo & Screenshots
 
 <p align="center">
@@ -84,6 +87,7 @@ It works entirely in the browser (desktop & mobile) thanks to its **Progressive 
 
 ---
 
+<a id="tech-stack"></a>
 ## <img src="images/icons/code-window.svg" fill="white" width="24" height="24" valign="middle"/> Tech Stack
 
 ### <img src="images/icons/browser-ui.svg" fill="white" width="20" height="20" valign="middle"/> Frontend
@@ -106,6 +110,7 @@ It works entirely in the browser (desktop & mobile) thanks to its **Progressive 
 
 ---
 
+<a id="quick-start"></a>
 ## <img src="images/icons/time-fast.svg" fill="white" width="24" height="24" valign="middle"/> Quick Start
 
 Make sure you have **Node.js ≥ 18** and **Python ≥ 3.10** installed.
@@ -126,4 +131,3 @@ uvicorn app.main:app --reload
 cd frontend
 npm install
 npm run dev
-```
