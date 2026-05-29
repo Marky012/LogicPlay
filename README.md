@@ -103,10 +103,12 @@ It works entirely in the browser (desktop & mobile) thanks to its **Progressive 
 - **scikit‑learn** – machine learning for intelligent auto‑grading
 - **JWT** authentication – secure user sessions
 
-### <img src="images/icons/urban-planning.svg" fill="white" width="20" height="20" valign="middle"/> DevOps & Tools
-- **Docker** & **docker‑compose** – containerized development
-- **GitHub Actions** – CI/CD pipeline (lint, test, deploy)
-- **Vercel / Render** – deployment targets
+### <img src="images/icons/urban-planning.svg" fill="white" width="20" height="20" valign="middle"/> Dev Tools & Testing
+- **uvicorn** – ASGI server for running the FastAPI backend
+- **SQLAlchemy** – ORM for database modeling and queries
+- **python‑dotenv** – environment variable management via `.env` files
+- **pytest** + **httpx** – backend unit & integration testing
+- **ngrok** – secure tunnel for mobile live‑preview during development
 
 ---
 
