@@ -103,7 +103,7 @@ It works entirely in the browser (desktop & mobile) thanks to its **Progressive 
 - **scikit‑learn** – machine learning for intelligent auto‑grading
 - **JWT** authentication – secure user sessions
 
-### <img src="images/icons/urban-planning.svg" fill="white" width="20" height="20" valign="middle"/> Dev Tools & Testing
+### <img src="images/icons/web-test.svg" fill="white" width="20" height="20" valign="middle"/> Dev Tools & Testing
 - **uvicorn** – ASGI server for running the FastAPI backend
 - **SQLAlchemy** – ORM for database modeling and queries
 - **python‑dotenv** – environment variable management via `.env` files
@@ -113,7 +113,7 @@ It works entirely in the browser (desktop & mobile) thanks to its **Progressive 
 ---
 
 <a id="quick-start"></a>
-## <img src="images/icons/web-test.svg" fill="white" width="24" height="24" valign="middle"/> Quick Start
+## <img src="images/icons/time-fast.svg" fill="white" width="24" height="24" valign="middle"/> Quick Start
 
 Make sure you have **Node.js ≥ 18** and **Python ≥ 3.10** installed.
 
